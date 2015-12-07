@@ -1,0 +1,19 @@
+#!/usr/bin/python
+
+from Ranger import Ranger
+
+if __name__ == "__main__":
+    from optparse import OptionParser
+
+    parser = OptionParser()
+    parser.add_option("--host", default="localhost")
+    parser.add_option("-u", "--user", default="caiche")
+    parser.add_option("-p", "--password")
+
+    opts, args = parser.parse_args()
+
+    if __debug__: print opts, args
+
+    ranger = Ranger(opts.host, opts.user, opts.password)
+
+    ranger.cmdloop()
