@@ -1,0 +1,18 @@
+#!/usr/bin/python
+
+from WebHCat import WebHCat
+
+if __name__ == "__main__":
+    from optparse import OptionParser
+
+    parser = OptionParser()
+    parser.add_option("--host", default="localhost")
+    parser.add_option("-u", "--user", default="caiche")
+
+    opts, args = parser.parse_args()
+
+    if __debug__: print opts, args
+
+    hcat = WebHCat(opts.host, opts.user)
+
+    hcat.cmdloop()

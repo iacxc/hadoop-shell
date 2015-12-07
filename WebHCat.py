@@ -3,7 +3,7 @@
 #exports
 __all__ = ("WebHCat",)
 
-from HadoopUtil import HadoopUtil, Request
+from HadoopUtil import HadoopUtil, Request, CmdTuple
 
 class WebHCat(HadoopUtil):
     operations = ("status", 
@@ -12,14 +12,35 @@ class WebHCat(HadoopUtil):
                   "get_database",
                   "get_table",)
     rootpath = "/templeton/v1"
+    commands = HadoopUtil.commands + [
+        "",
+        CmdTuple("status",                 "Get status"),
+        CmdTuple("version [component]",    "Show the version"),
+        CmdTuple("use <dbname>",           "Change the current db"),
+        CmdTuple("runddl <command>",       "Run ddl command"),
+        CmdTuple("list database",          "List all databases"),
+        CmdTuple("list table",             "List all tables"),
+        CmdTuple("show database <dbname>", "Show detals of current database"),
+        CmdTuple("show table <table>",     "Show detals of a table"),
+    ]
 
-    def __init__(self, host, user, curl=False):
-        super(WebHCat, self).__init__("http", host, 50111)
-        self.__user = user
-        self.__curl = curl
+    def __init__(self, host, user):
+        HadoopUtil.__init__(self, "http", host, 50111, user)
+        self.__db = "default"
 
-    def __iter__(self):
-        return iter(self.operations)
+
+    @property
+    def banner(self):
+        return "HCatalog Shell"
+
+    @property
+    def weburl(self):
+        return self.baseurl + self.rootpath
+
+
+    @property
+    def db(self):
+        return self.__db
 
 
     @staticmethod
@@ -30,37 +51,65 @@ class WebHCat(HadoopUtil):
     def Post(url, user=None, auth=None, data=None, curl=False):
         return Request("POST", url, user, auth, data=data, curl=curl)
 
-    @property
-    def weburl(self):
-        return self.baseurl + self.rootpath
+
+    def do_status(self, data):
+        self.do_echo(self.Get(self.weburl + "/status" , 
+                              self.user, curl=self.curl))
 
 
-    def status(self):
-        return self.Get(self.weburl + "/status" , 
-                        self.__user, curl=self.__curl)
-
-
-    def version(self, component=None):
+    def do_version(self, component=""):
         url = self.weburl + "/version"
-        if component is not None:
+        if component:
             url += "/%s" % component
 
-        return self.Get(url, self.__user, curl=self.__curl)
+        self.do_echo(self.Get(url, self.user, curl=self.curl))
 
 
-    def runddl(self, ddl):
-        result = self.Post(self.weburl + "/ddl", self.__user,
-                           data="exec=%s" % ddl, 
-                           curl=self.__curl)
-        return result
+    def do_use(self, data):
+        if data:
+            self.__db = data
+        else:
+            self.do_echo(self.db)
+
+
+    def do_runddl(self, ddl=""):
+        if not ddl:
+            self.do_echo("Missing ddl command")
+        else:
+            self.do_echo(self.Post(self.weburl + "/ddl", self.user,
+                                   data="exec=%s" % ddl, 
+                                   curl=self.curl))
             
+
+    def do_list(self, data):
+        if data == "database":
+            self.do_echo(self.get_database())
+        elif data.startswith("table"):
+            self.do_echo(self.get_table(self.db))
+        else:
+            self.do_echo("Invalid parameter '%s'" % data)
+
+
+    def do_show(self, data):
+        params = data.split()
+        if len(params) < 2:
+            self.do_echo("Not enough parameters")
+            return 
+
+        if params[0] == "database":
+            self.do_echo(self.get_database(params[1]))
+        elif params[0] == "table":
+            self.do_echo(self.get_table(self.db, params[1]))
+        else:
+            self.do_echo("Invalid parameter '%s'" % params[0])
+
 
     def get_database(self, dbname=None):
         url = self.weburl + "/ddl/database"
         if dbname is not None:
             url += "/%s" % dbname
 
-        return self.Get(url, self.__user, curl=self.__curl)
+        return self.Get(url, self.user, curl=self.curl)
 
 
     def get_table(self, dbname, tablename=None):
@@ -68,44 +117,45 @@ class WebHCat(HadoopUtil):
         if tablename is not None:
             url += "/%s" % tablename
 
-        return self.Get(url, self.__user, curl=self.__curl)
+        return self.Get(url, self.user, curl=self.curl)
 
 
 #
 # ---- main ----
 if __name__ == "__main__":
-    import sys
-    import json
-    from optparse import OptionParser
-
-    parser = OptionParser()
-    parser.add_option("--host", default="localhost")
-    parser.add_option("--curl", action="store_true", default=False)
-    parser.add_option("-u", "--user", default="caiche")
-
-    opts, args = parser.parse_args()
-
-    if __debug__: print opts, args
-
-    if len(args) < 1:
-        print "Missing arguments, supported methods are", WebHCat.operations
-        sys.exit(1)
-
-    hcatalog = WebHCat(opts.host, opts.user, opts.curl)
-
-    method = args[0]
-    if not method in hcatalog:
-        print "Unsupported method '%s'" % method
-        sys.exit(1)
-
-    try:
-        fun = getattr(hcatalog, method)
-        result = fun(*args[1:])
-        if isinstance(result, (dict, list)):
-            print json.dumps(result, indent=4)
-        else:
-            print result
-
-    except AttributeError as e:
-        print e
-
+    print "WebHCatalog"
+#    import sys
+#    import json
+#    from optparse import OptionParser
+#
+#    parser = OptionParser()
+#    parser.add_option("--host", default="localhost")
+#    parser.add_option("--curl", action="store_true", default=False)
+#    parser.add_option("-u", "--user", default="caiche")
+#
+#    opts, args = parser.parse_args()
+#
+#    if __debug__: print opts, args
+#
+#    if len(args) < 1:
+#        print "Missing arguments, supported methods are", WebHCat.operations
+#        sys.exit(1)
+#
+#    hcatalog = WebHCat(opts.host, opts.user, opts.curl)
+#
+#    method = args[0]
+#    if not method in hcatalog:
+#        print "Unsupported method '%s'" % method
+#        sys.exit(1)
+#
+#    try:
+#        fun = getattr(hcatalog, method)
+#        result = fun(*args[1:])
+#        if isinstance(result, (dict, list)):
+#            print json.dumps(result, indent=4)
+#        else:
+#            print result
+#
+#    except AttributeError as e:
+#        print e
+#

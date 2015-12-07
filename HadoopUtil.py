@@ -11,6 +11,7 @@ __all__ = ("HadoopUtil", "Request",
 
 import requests
 import json
+import sys
 from cmd import Cmd
 from collections import namedtuple
 
@@ -97,20 +98,20 @@ def Request(method, url, user=None, auth=None, params=None,
         return {"status" : "Format error", "text" : resp.text}
 
 
-CmdTuple = namedtuple("Command", ["cmd", "params", "help"])
+CmdTuple = namedtuple("Command", ["caption", "help"])
 class HadoopUtil(Cmd):
     """ base class for a bunch of hadoop utilities """
     commands = [
-        CmdTuple("help", "",               "Show this help page"),
-        CmdTuple("echo", "",               "Echo the message"),
-        CmdTuple("curl", "[on|off]",       "Display or set curl option"),
-        CmdTuple("whoami", "",             "Display the current user"),
-        CmdTuple("prefix", "[prefix]",     "Display or set the prefix"),
-        CmdTuple("host", "[host]",         "Display or set the host"),
-        CmdTuple("port", "[port]",         "Display or set the port"),
-        CmdTuple("user", "[username]",     "Set the currentuser"),
-        CmdTuple("passwd", "[password]",   "Set the password"),
-        CmdTuple("quit or exit or ^D", "", "Exit the program") ]
+        CmdTuple("help",                "Show this help page"),
+        CmdTuple("echo",                "Echo the message"),
+        CmdTuple("curl [on|off]",       "Display or set curl option"),
+        CmdTuple("whoami",              "Display the current user"),
+        CmdTuple("prefix [prefix]",     "Display or set the prefix"),
+        CmdTuple("host [host]",         "Display or set the host"),
+        CmdTuple("port [port]",         "Display or set the port"),
+        CmdTuple("user [username]",     "Set the currentuser"),
+        CmdTuple("passwd [password]",   "Set the password"),
+        CmdTuple("quit or exit or ^D",  "Exit the program") ]
 
     def __init__(self, prefix, host, port, user, passwd=None):
         Cmd.__init__(self)
@@ -124,26 +125,26 @@ class HadoopUtil(Cmd):
 
         self.set_prompt()
 
+
+    @property
+    def banner(self):
+        return "Hadoop Shell"
  
     @property
     def baseurl(self):
         return "%s://%s:%s" % (self.__prefix, self.__host, self.__port)
 
-
     @property
     def user(self):
         return self.__user
-
 
     @property
     def passwd(self):
         return self.__passwd
 
-
     @property
     def auth(self):
         return (self.user, self.passwd)
-
 
     @property
     def curl(self):
@@ -154,10 +155,6 @@ class HadoopUtil(Cmd):
         self.prompt = self.baseurl + "> "
  
 
-    @property
-    def banner(self):
-        return "Hadoop Shell"
-
     def do_help(self, data):
         print
         print self.banner
@@ -165,7 +162,7 @@ class HadoopUtil(Cmd):
         print "Commands:"
         for cmditem in self.commands:
             if isinstance(cmditem, CmdTuple):
-                print "    %-20s%-25s- %-s" % cmditem
+                print "    %-35s- %-s" % cmditem
             else:
                 print
 
@@ -243,6 +240,16 @@ class HadoopUtil(Cmd):
         print "Exit..."
 
 
+    def cmdloop(self):
+        while True:
+            try:
+                Cmd.cmdloop(self)
+                sys.exit(0)
+            except KeyboardInterrupt:
+                print "\nControl-C"
+                sys.exit(1)
+            except Exception as e:
+                print e
 
 #
 # ---- main ----

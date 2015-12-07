@@ -25,35 +25,46 @@ class WebHdfs(HadoopUtil):
     rootpath = "/webhdfs/v1"
     commands = HadoopUtil.commands + [
         "",
-        CmdTuple("lls",    "",  "List local files/directoies"),
-        CmdTuple("ls",     "",  "List files/directoies"),
-        CmdTuple("pwd",    "",  "Show the current dir"),
-        CmdTuple("cd",     "",  "Change the current dir"),
-        CmdTuple("cat",    "",  "Type a text file"),
-        CmdTuple("mkdir",  "",  "Show a policy"),
-        CmdTuple("cp",     "",  "Create a repository"),
-        CmdTuple("append", "",  "Create a policy"),
-        CmdTuple("chmod",  "",  "Update a repository"),
-        CmdTuple("chown",  "",  "Update a policy"),
-        CmdTuple("delete", "",  "Delete a repository"),
-        CmdTuple("rename", "",  "Delete a policy"),
-        ]
-
+        CmdTuple("lls",               "List local files/directoies"),
+        CmdTuple("ls",                "List files/directoies"),
+        CmdTuple("dir",               "List directoies"),
+        CmdTuple("pwd",               "Show the current dir"),
+        CmdTuple("cd",                "Change the current dir"),
+        CmdTuple("cat <file>",        "Type a text file"),
+        CmdTuple("mkdir <dir>",       "Create a directory"),
+        CmdTuple("cp <localfile> <remotefile>",
+                                      "Copy a local file to a remote file"),
+        CmdTuple("append <localfile> <remotefile>",
+                                     "Append a localfile to a remote file"),
+        CmdTuple("chmod <permission> <file>",
+                                      "Change the permission of a file"),
+        CmdTuple("chown <user[:group]> file",
+                                      "Change the owner of a file"),
+        CmdTuple("rm <file>",         "Remove a file"),
+        CmdTuple("rename <oldfile> <newfile>",   
+                                      "Rename a file"),
+    ]
 
     def __init__(self, host, user):
         HadoopUtil.__init__(self, "http", host, 50070, user)
-        self.__curdir = self.home
+        self.__cwd = self.home
 
+
+    @property
+    def banner(self):
+        return "HDFS Shell"
 
     @property
     def weburl(self):
         return self.baseurl + self.rootpath
 
-
     @property
     def home(self):
         return "/user/%s" % self.user
 
+    @property
+    def cwd(self):
+        return self.__cwd
 
     @staticmethod
     def Get(url, op, user=None, auth=None, params=None, curl=False, 
@@ -95,24 +106,27 @@ class WebHdfs(HadoopUtil):
 
 
     def do_pwd(self, data):
-        print self.__curdir
+        print self.cwd
 
 
     def do_cd(self, data):
         if data:
             if data == "..":
-                self.__curdir = os.path.dirname(self.__curdir)
+                self.__cwd = os.path.dirname(self.cwd)
             elif data[0] == "/":
-                self.__curdir = data
+                self.__cwd = data
             else:
-                self.__curdir = "%s/%s" % (self.__curdir, data)
+                self.__cwd = "%s/%s" % (self.cwd, data)
         else:
-            self.__curdir = self.home
+            self.__cwd = self.home
 
 
-    def do_ls(self, filename):
+    def do_ls(self, filename, filter_=lambda _:True):
         if len(filename) == 0:
-            filename = self.__curdir
+            filename = self.cwd
+
+        if filename[0] != "/":
+            filename = "%s/%s" % (self.cwd, filename)
 
         result = self.Get(self.weburl + filename, "ls", self.user, 
                           curl=self.curl)
@@ -120,9 +134,14 @@ class WebHdfs(HadoopUtil):
         if result is not None:
             if result.get("FileStatuses"):
                 fs_list = result["FileStatuses"]["FileStatus"]
-                print "\n".join(gen_fileinfo(fs) for fs in fs_list)
+                print "\n".join(filter(filter_, 
+                                (gen_fileinfo(fs) for fs in fs_list)))
             else:
                 print "File not found"
+
+
+    def do_dir(self, filename):
+        self.do_ls(filename, lambda f: f[0] == "d")
 
 
     def do_mkdir(self, data):
@@ -133,7 +152,7 @@ class WebHdfs(HadoopUtil):
 
         dirname = params[0]
         if dirname[0] != "/":
-            dirname = "%s/%s" % (self.__curdir, dirname)
+            dirname = "%s/%s" % (self.cwd, dirname)
 
         perm = params[1] if len(params) > 1 else "777"
         print self.Put(self.weburl + dirname, "mkdir", self.user, 
@@ -149,7 +168,7 @@ class WebHdfs(HadoopUtil):
 
         localfile, remotefile = params
         if remotefile[0] != "/":
-            remotefile = "%s/%s" % (self.__curdir, remotefile)
+            remotefile = "%s/%s" % (self.cwd, remotefile)
         with file(localfile) as f:
             result = self.Put(self.weburl + remotefile, "cp", self.user, 
                               params={"overwrite" : "true"}, 
@@ -171,7 +190,7 @@ class WebHdfs(HadoopUtil):
 
         localfile, remotefile = params
         if remotefile[0] != "/":
-            remotefile = "%s/%s" % (self.__curdir, remotefile)
+            remotefile = "%s/%s" % (self.cwd, remotefile)
         with file(localfile) as f:
             result = self.Post(self.weburl + remotefile, "append", self.user,
                                data=f.read(),
@@ -223,7 +242,7 @@ class WebHdfs(HadoopUtil):
 
         perm, filename = params
         if filename[0] != "/":
-            filename = "%s/%s" % (self.__curdir, filename)
+            filename = "%s/%s" % (self.cwd, filename)
         r = self.Put(self.weburl + filename, "chmod", self.user,
                      params={"permission" : perm}, curl=self.curl)
 
@@ -238,7 +257,7 @@ class WebHdfs(HadoopUtil):
 
         owner, filename = params
         if filename[0] != "/":
-            filename = "%s/%s" % (self.__curdir, filename)
+            filename = "%s/%s" % (self.cwd, filename)
         group = None
         if owner.count(":") == 1:
             owner, group = owner.split(":")

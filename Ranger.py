@@ -11,26 +11,40 @@ class Ranger(HadoopUtil):
     rootpath = "/service/public/api"
     commands = HadoopUtil.commands + [
         "",
-        CmdTuple("list repository",    "",             "List all repositories"),
-        CmdTuple("list policy",        "",             "List all policies"),
-        CmdTuple("show repository",    "<id>",         "Show a repository"),
-        CmdTuple("show policy",        "<id>",         "Show a policy"),
-        CmdTuple("create repository", "<data>",        "Create a repository"),
-        CmdTuple("create policy",     "<data>",        "Create a policy"),
-        CmdTuple("update repository", "<id> <data>",   "Update a repository"),
-        CmdTuple("update policy",     "<id> <data>",   "Update a policy"),
-        CmdTuple("delete repository", "<id>",          "Delete a repository"),
-        CmdTuple("delete policy",     "<id>",          "Delete a policy"),
+        CmdTuple("list repository",                 "List all repositories"),
+        CmdTuple("list policy",                     "List all policies"),
+        CmdTuple("show repository    <id>",         "Show a repository"),
+        CmdTuple("show policy        <id>",         "Show a policy"),
+        CmdTuple("create repository <data>",        "Create a repository"),
+        CmdTuple("create policy     <data>",        "Create a policy"),
+        CmdTuple("update repository <id> <data>",   "Update a repository"),
+        CmdTuple("update policy     <id> <data>",   "Update a policy"),
+        CmdTuple("delete repository <id>",          "Delete a repository"),
+        CmdTuple("delete policy     <id>",          "Delete a policy"),
         ]
 
     def __init__(self, host, user, passwd):
         HadoopUtil.__init__(self, "http", host, 6080, user, passwd)
 
-        self.weburl = self.baseurl + self.rootpath
-        self.repourl = self.weburl + "/repository"
-        self.policyurl = self.weburl + "/policy"
+
+    @property
+    def banner(self):
+        return "Ranger Shell"
+
+    @property
+    def weburl(self):
+        return self.baseurl + self.rootpath
+
+    @property
+    def repourl(self):
+        return self.weburl + "/repository"
+
+    @property
+    def policyurl(self):
+        return self.weburl + "/policy"
 
 
+ 
     @staticmethod
     def Get(url, auth, params=None, curl=False):
         return Request("GET", url, auth=auth, params=params, curl=curl)
@@ -51,12 +65,7 @@ class Ranger(HadoopUtil):
                        data=data, 
                        headers={"Content-Type" : "Application/json"}, curl=curl)
 
-    @property
-    def banner(self):
-        return "Ranger Shell"
-
-
-    def do_list(self, data):
+   def do_list(self, data):
         if data == 'repository':
             self.do_echo(self.get_repository())
         elif data == 'policy':
