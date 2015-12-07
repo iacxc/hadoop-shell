@@ -120,7 +120,7 @@ class HadoopUtil(Cmd):
         self.__host = host
         self.__port = port
         self.__user = user
-        self.__passwd = None
+        self.__passwd = passwd
         self.__curl = False
 
         self.set_prompt()

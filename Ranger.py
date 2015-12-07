@@ -65,19 +65,19 @@ class Ranger(HadoopUtil):
                        data=data, 
                        headers={"Content-Type" : "Application/json"}, curl=curl)
 
-   def do_list(self, data):
+    def do_list(self, data):
         if data == 'repository':
             self.do_echo(self.get_repository())
         elif data == 'policy':
             self.do_echo(self.get_policy())
         else:
-            print "Invalid parameter '%s'" % data
+            self.do_echo("Invalid parameter '%s'" % data)
 
 
     def do_show(self, data):
         params = data.split()
         if len(params) < 2:
-            print "Not enough parameters"
+            self.do_echo("Not enough parameters")
             return 
 
         if params[0] == 'repository':
@@ -85,23 +85,23 @@ class Ranger(HadoopUtil):
         elif params[0] == 'policy':
             self.do_echo(self.get_policy(params[1]))
         else:
-            print "Invalid parameter '%s'" % params[0]
+            self.do_echo("Invalid parameter '%s'" % params[0])
 
 
     def do_create(self, data):
         params = data.split()
         if len(params) < 2:
-            print "Not enough parameters"
+            self.do_echo("Not enough parameters")
             return 
 
         try:
             postdata = " ".join(params[1:])
             if params[0] == 'repository':
-                print "Create repository", json.loads(postdata)
+                print "Create repository", json.loads(postdata))
             elif params[0] == 'policy':
-                print "Create policy", json.loads(postdata)
+                print "Create policy %s" , json.loads(postdata))
             else:
-                print "Invalid parameter '%s'" % params[0]
+                self.do_echo("Invalid parameter '%s'" % params[0])
 
         except TypeError as e:
              print e
@@ -112,17 +112,18 @@ class Ranger(HadoopUtil):
     def do_update(self, data):
         params = data.split()
         if len(params) < 3:
-            print "Not enough parameters"
+            self.do_echo("Not enough parameters")
             return 
 
         try:
             postdata = " ".join(params[2:])
             if params[0] == 'repository':
-                print "Update repository " + params[1], json.loads(postdata)
+                print "Update repository " + params[1], \
+                      "%s" % json.loads(postdata))
             elif params[0] == 'policy':
                 print "Update policy " + params[1], json.loads(postdata)
             else:
-                print "Invalid parameter '%s'" % params[0]
+                self.do_echo("Invalid parameter '%s'" % params[0])
         
         except TypeError as e:
              print e
@@ -133,14 +134,14 @@ class Ranger(HadoopUtil):
     def do_delete(self, data):
         params = data.split()
         if len(params) < 2:
-            print "Not enough parameters"
+            self.do_echo("Not enough parameters")
 
         if params[0] == 'repository':
             self.do_echo(self.delete_repository(params[1]))
         elif params[0] == 'policy':
             self.do_echo(self.delete_policy(params[1]))
         else:
-            print "Invalid parameter '%s'" % params[0]
+            self.do_echo("Invalid parameter '%s'" % params[0])
 
 
     def get_repository(self, service_id=None):

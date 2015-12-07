@@ -4,51 +4,96 @@
 __all__ = ("Knox",)
 
 
-from HadoopUtil import HadoopUtil, Request, \
+from HadoopUtil import HadoopUtil, Request, CmdTuple, \
                        gen_fileinfo
 from WebHdfs import WebHdfs
 from WebHCat import WebHCat
-from ResourceManager import ResourceManager
+#from ResourceManager import ResourceManager
 
 
 class Knox(HadoopUtil):
-    operations = ("ls", "cat", 
-                  "cluster_info", "cluster_metrics", "get_node",
-                  "get_database", "get_table",)
+#                  "cluster_info", "cluster_metrics", "get_node",
 
-    def __init__(self, host, user, password, topo="default", curl=False):
-        super(Knox, self).__init__("https", host, 8443)
-        self.__user = user
-        self.__password = password
-        self.__curl = curl
-
-        self.weburl = self.baseurl + "/gateway/" + topo
-        self.hdfsurl = self.weburl + WebHdfs.rootpath
-        self.hcaturl = self.weburl + WebHCat.rootpath
-        self.rmurl = self.weburl + ResourceManager.rootpath
-
-
-    def __iter__(self):
-        return iter(self.operations)
+    commands = HadoopUtil.commands + [
+        "",
+        CmdTuple("ls <file|dir>",           "List files/directoies"),
+        CmdTuple("cat <file>",              "Show a text file"),
+        CmdTuple("topo [topology]",         "Set or show the topology"),
+        CmdTuple("show databases",           "List all databases"),
+        CmdTuple("show tables <db>",         "List all tables"),
+        CmdTuple("desc database <db>",      "Show detals of current database"),
+        CmdTuple("desc table <db> <table>", "Show detals of a table"),
+    ]
+    def __init__(self, host, user, password, topo="default"):
+        HadoopUtil.__init__(self, "https", host, 8443, user, password)
+        self.__topo = topo
 
 
     @property
-    def auth(self):
-        return (self.__user, self.__password)
+    def weburl(self):
+        return self.baseurl + "/gateway/" + self.__topo
+
+    @property
+    def hdfsurl(self):
+        return  self.weburl + WebHdfs.rootpath
+
+    @property
+    def hcaturl(self):
+        return self.weburl + WebHCat.rootpath
+
+    @property
+    def rmurl(self):
+        return self.weburl + ResourceManager.rootpath
 
 
-    def ls(self, dirname):
+    def do_topo(self, topo):
+        if topo:
+            self.__topo = topo
+        else:
+            self.do_echo(self.__topo)
+
+
+    def do_ls(self, dirname):
+        if not dirname:
+            self.do_echo("Missing file/dir name")
+            return
+
         r = WebHdfs.Get(self.hdfsurl + dirname, "ls",
-                        auth=self.auth, curl=self.__curl)
-
+                        auth=self.auth, curl=self.curl)
         if r is not None:
-            fs_list = r["FileStatuses"]["FileStatus"]
-            return [gen_fileinfo(fs) for fs in fs_list]
+            if r.get("FileStatuses"):               
+                fs_list = r["FileStatuses"]["FileStatus"]
+                self.do_echo("\n".join(gen_fileinfo(fs) for fs in fs_list))
+            else:
+                self.do_echo(r)
 
 
-    def cat(self, filename):
-        return WebHdfs.Get(self.hdfsurl + filename, "cat", 
-                        auth=self.auth, curl=self.__curl, text=True)
+    def do_cat(self, filename):
+        if filename:
+            self.do_echo(WebHdfs.Get(self.hdfsurl + filename, "cat", 
+                                     auth=self.auth, curl=self.curl, text=True))
+
+
+    def do_show(self, data):
+        if data:
+            params = data.split()
+            if len(params) == 1 and params[0] == "databases":
+                self.do_echo(self.get_database())
+            elif len(params) == 2 and params[0] == "tables":
+                self.do_echo(self.get_table(params[1]))
+            else:
+                self.do_echo("Invalid parameter '%s'" % data)
+
+
+    def do_desc(self, data):
+        if data:
+            params = data.split()
+            if len(params) == 2  and params[0] == "database":
+                self.do_echo(self.get_database(params[1]))
+            elif len(params) == 3 and params[0] == "table":
+                self.do_echo(self.get_table(params[1], params[2]))
+            else:
+                self.do_echo("Invalid parameter '%s'" % params[0])
 
 
     def cluster_info(self):
@@ -88,39 +133,40 @@ class Knox(HadoopUtil):
 #
 # ---- main ----
 if __name__ == "__main__":
-    import sys
-    import json
-    from optparse import OptionParser
-
-    parser = OptionParser()
-    parser.add_option("--host", default="localhost")
-    parser.add_option("--curl", action="store_true", default=False)
-    parser.add_option("-u", "--user", default="caiche")
-    parser.add_option("-p", "--password", default="caiche-password")
-
-    opts, args = parser.parse_args()
-
-    if __debug__: print opts, args
-
-    if len(args) < 1:
-        print "Missing arguments, supported methods are", Knox.operations
-        sys.exit(1)
-
-    knox = Knox(opts.host, opts.user, opts.password, curl=opts.curl)
-
-    method = args[0]
-    if not method in knox:
-        print "Unsupported method '%s'" % method
-        sys.exit(1)
-
-    try:
-        fun = getattr(knox, method)
-        result = fun(*args[1:])
-        if isinstance(result, (dict, list)):
-            print json.dumps(result, indent=4)
-        else:
-            print result
-
-    except AttributeError as e:
-        print e
-
+    print "Knox"
+#    import sys
+#    import json
+#    from optparse import OptionParser
+#
+#    parser = OptionParser()
+#    parser.add_option("--host", default="localhost")
+#    parser.add_option("--curl", action="store_true", default=False)
+#    parser.add_option("-u", "--user", default="caiche")
+#    parser.add_option("-p", "--password", default="caiche-password")
+#
+#    opts, args = parser.parse_args()
+#
+#    if __debug__: print opts, args
+#
+#    if len(args) < 1:
+#        print "Missing arguments, supported methods are", Knox.operations
+#        sys.exit(1)
+#
+#    knox = Knox(opts.host, opts.user, opts.password, curl=opts.curl)
+#
+#    method = args[0]
+#    if not method in knox:
+#        print "Unsupported method '%s'" % method
+#        sys.exit(1)
+#
+#    try:
+#        fun = getattr(knox, method)
+#        result = fun(*args[1:])
+#        if isinstance(result, (dict, list)):
+#            print json.dumps(result, indent=4)
+#        else:
+#            print result
+#
+#    except AttributeError as e:
+#        print e
+#

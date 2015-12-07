@@ -106,7 +106,7 @@ class WebHdfs(HadoopUtil):
 
 
     def do_pwd(self, data):
-        print self.cwd
+        self.do_echo(self.cwd)
 
 
     def do_cd(self, data):
@@ -128,16 +128,15 @@ class WebHdfs(HadoopUtil):
         if filename[0] != "/":
             filename = "%s/%s" % (self.cwd, filename)
 
-        result = self.Get(self.weburl + filename, "ls", self.user, 
-                          curl=self.curl)
+        r = self.Get(self.weburl + filename, "ls", self.user, curl=self.curl)
 
-        if result is not None:
-            if result.get("FileStatuses"):
-                fs_list = result["FileStatuses"]["FileStatus"]
-                print "\n".join(filter(filter_, 
-                                (gen_fileinfo(fs) for fs in fs_list)))
+        if r is not None:
+            if r.get("FileStatuses"):
+                fs_list = r["FileStatuses"]["FileStatus"]
+                self.do_echo("\n".join(filter(filter_, 
+                                (gen_fileinfo(fs) for fs in fs_list))))
             else:
-                print "File not found"
+                self.do_echo("File not found")
 
 
     def do_dir(self, filename):
@@ -147,7 +146,7 @@ class WebHdfs(HadoopUtil):
     def do_mkdir(self, data):
         params = data.split()
         if len(params) < 1:
-            print "Incorrect parameters"
+            self.do_echo("Incorrect parameters")
             return
 
         dirname = params[0]
@@ -155,15 +154,15 @@ class WebHdfs(HadoopUtil):
             dirname = "%s/%s" % (self.cwd, dirname)
 
         perm = params[1] if len(params) > 1 else "777"
-        print self.Put(self.weburl + dirname, "mkdir", self.user, 
+        self.do_echo(self.Put(self.weburl + dirname, "mkdir", self.user, 
                         params={"permission" : perm},
-                        curl=self.curl)
+                        curl=self.curl))
 
 
     def do_cp(self, data):
         params = data.split()
         if len(params) != 2:
-            print "Incorrect parameters"
+            self.do_echo("Incorrect parameters")
             return
 
         localfile, remotefile = params
@@ -177,15 +176,15 @@ class WebHdfs(HadoopUtil):
                               expected=(STATUS_CREATED,))
 
             if result is not None:
-                print {"status" : "OK"}
+                self.do_echo({"status" : "OK"})
             else:
-                print "Failed"
+                self.do_echo("Failed")
 
 
     def do_append(self, data):
         params = data.split()
         if len(params) != 2:
-            print "Incorrect parameters"
+            self.do_echo("Incorrect parameters")
             return
 
         localfile, remotefile = params
@@ -196,32 +195,34 @@ class WebHdfs(HadoopUtil):
                                data=f.read(),
                                curl=self.curl)
 
-            print {"status" : "OK"} if r is not None else "Failed"
+            self.do_echo({"status" : "OK"} if r is not None else "Failed")
 
 
     def do_delete(self, filename) : 
         if filename:
             if filename[0] != "/":
                 filename = "/user/%s/%s" % (self.user, filename)
-            print self.Delete(self.weburl + filename, self.user, curl=self.curl)
+
+            self.do_echo(self.Delete(self.weburl + filename, 
+                                     self.user, curl=self.curl))
         else:
-            print "Missing filename"
+            self.do_echo("Missing filename")
 
 
     def do_cat(self, filename):
         if filename:
             if filename[0] != "/":
                 filename = "/user/%s/%s" % (self.user, filename)
-            print self.Get(self.weburl + filename, "cat", self.user,
-                        curl=self.curl, text=True)
+            self.do_echo(self.Get(self.weburl + filename, "cat", self.user,
+                        curl=self.curl, text=True))
         else:
-            print "Missing filename"
+            self.do_echo("Missing filename")
 
 
     def do_rename(self, data):
         params = data.split()
         if len(params) != 2:
-            print "Incorrect parameters"
+            self.do_echo("Incorrect parameters")
             return
 
         srcname, destname = params
@@ -237,7 +238,7 @@ class WebHdfs(HadoopUtil):
     def do_chmod(self, data):
         params = data.split()
         if len(params) != 2:
-            print "Incorrect parameters"
+            self.do_echo("Incorrect parameters")
             return
 
         perm, filename = params
@@ -246,13 +247,13 @@ class WebHdfs(HadoopUtil):
         r = self.Put(self.weburl + filename, "chmod", self.user,
                      params={"permission" : perm}, curl=self.curl)
 
-        print {"status" : "OK"} if r is not None else "Failed"
+        self.do_echo({"status" : "OK"} if r is not None else "Failed")
 
 
     def do_chown(self, data):
         params = data.split()
         if len(params) != 2:
-            print "Incorrect parameters"
+            self.do_echo("Incorrect parameters")
             return
 
         owner, filename = params
@@ -266,7 +267,7 @@ class WebHdfs(HadoopUtil):
                      params={"owner" : owner, "group" : group}, 
                      curl=self.curl)
 
-        print {"status" : "OK"} if r is not None else "Failed"
+        self.do_echo({"status" : "OK"} if r is not None else "Failed")
 
 
 #

@@ -18,10 +18,10 @@ class WebHCat(HadoopUtil):
         CmdTuple("version [component]",    "Show the version"),
         CmdTuple("use <dbname>",           "Change the current db"),
         CmdTuple("runddl <command>",       "Run ddl command"),
-        CmdTuple("list database",          "List all databases"),
-        CmdTuple("list table",             "List all tables"),
-        CmdTuple("show database <dbname>", "Show detals of current database"),
-        CmdTuple("show table <table>",     "Show detals of a table"),
+        CmdTuple("show databases",          "List all databases"),
+        CmdTuple("show tables",             "List all tables"),
+        CmdTuple("desc database <dbname>", "Show detals of current database"),
+        CmdTuple("desc table <table>",     "Show detals of a table"),
     ]
 
     def __init__(self, host, user):
@@ -81,16 +81,16 @@ class WebHCat(HadoopUtil):
                                    curl=self.curl))
             
 
-    def do_list(self, data):
-        if data == "database":
+    def do_show(self, data):
+        if data == "databases":
             self.do_echo(self.get_database())
-        elif data.startswith("table"):
+        elif data == "tables":
             self.do_echo(self.get_table(self.db))
         else:
             self.do_echo("Invalid parameter '%s'" % data)
 
 
-    def do_show(self, data):
+    def do_desc(self, data):
         params = data.split()
         if len(params) < 2:
             self.do_echo("Not enough parameters")
