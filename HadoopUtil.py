@@ -19,12 +19,13 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
-STATUS_OK = requests.codes.ok
-STATUS_CREATED = requests.codes.created
-STATUS_FORBIDDEN = requests.codes.forbidden
-STATUS_NOTFOUND = requests.codes.not_found
-STATUS_NOTALLOW = requests.codes.not_allowed
-STATUS_NOCONTENT = requests.codes.no_content
+STATUS_OK = requests.codes.ok                         # 200
+STATUS_CREATED = requests.codes.created               # 201
+STATUS_NOCONTENT = requests.codes.no_content          # 204
+STATUS_UNAUTHORIZED = requests.codes.unauthorized     # 401
+STATUS_FORBIDDEN = requests.codes.forbidden           # 403
+STATUS_NOTFOUND = requests.codes.not_found            # 404
+STATUS_NOTALLOW = requests.codes.not_allowed          # 405
 
 
 def getpermission(permission):
@@ -89,12 +90,14 @@ def Request(method, url, user=None, auth=None, params=None,
     try:
         if resp.status_code in expected:
             return resp.text if text else resp.json()
+        elif resp.status_code == STATUS_UNAUTHORIZED:
+            return {"status" : "Unauthorized"}
         elif resp.status_code == STATUS_FORBIDDEN:
-            return "Forbidden" if text else {"status" : "Forbidden"}
+            return {"status" : "Forbidden"}
         elif resp.status_code == STATUS_NOTFOUND:
-            return "Not Found" if text else {"status" : "Not Found"}
+            return {"status" : "Not Found"}
         elif resp.status_code == STATUS_NOTALLOW:
-            return "Not Allowed" if text else {"status": "Not Allowed"}
+            return {"status": "Not Allowed"}
         else:
             return resp.json()
     except ValueError:
