@@ -4,6 +4,7 @@
 __all__ = ('Ranger',)
 
 import json
+from Common import get_input
 from HadoopUtil import HadoopUtil, Request, CmdTuple, \
                        STATUS_NOCONTENT 
 
@@ -13,8 +14,8 @@ class Ranger(HadoopUtil):
         "",
         CmdTuple("list repository",                 "List all repositories"),
         CmdTuple("list policy",                     "List all policies"),
-        CmdTuple("show repository    <id>",         "Show a repository"),
-        CmdTuple("show policy        <id>",         "Show a policy"),
+        CmdTuple("list repository    <id>",         "Show a repository"),
+        CmdTuple("list policy        <id>",         "Show a policy"),
         CmdTuple("create repository <data>",        "Create a repository"),
         CmdTuple("create policy     <data>",        "Create a policy"),
         CmdTuple("update repository <id> <data>",   "Update a repository"),
@@ -51,99 +52,105 @@ class Ranger(HadoopUtil):
 
     @staticmethod
     def Delete(url, auth, curl=False):
-        return Request("DELETE", url, auth=auth, curl=curl)
+        return Request("DELETE", url, auth=auth, text=True,
+                       curl=curl, expected=(STATUS_NOCONTENT,))
 
     @staticmethod
     def Post(url, auth, data, curl=False):
         return Request("POST", url, auth=auth, 
                        data=data, 
-                       headers={"Content-Type" : "Application/json"}, curl=curl)
+                       headers={"Content-Type" : "Application/json"},
+                       curl=curl)
 
     @staticmethod
     def Put(url, auth, data, curl=False):
         return Request("PUT", url, auth=auth, 
                        data=data, 
-                       headers={"Content-Type" : "Application/json"}, curl=curl)
+                       headers={"Content-Type" : "Application/json"},
+                       curl=curl)
 
+    @staticmethod
+    def get_permission_map(*perms):
+        to_list = lambda s: s.replace(",", " ").split()
+
+        print "Please input a permission map:"
+
+        permlist = "/".join(perms)
+        perm_map ={"userList" : get_input("User(s)",
+                                          hint="comma seperated list",
+                                          default="",
+                                          convert=to_list),
+                   "groupList" : get_input("Group(s)",
+                                           hint="comma seperated list",
+                                           default="",
+                                           convert=to_list),
+                   "permList": get_input("Permissions",
+                                         hint="comma seperated list of %s" % permlist,
+                                         default="",
+                                         convert=to_list)
+                   }
+
+        return perm_map
+
+
+# command handers
     def do_list(self, data):
-        if data == 'repository':
-            self.do_echo(self.get_repository())
-        elif data == 'policy':
-            self.do_echo(self.get_policy())
-        else:
-            self.do_echo("Invalid parameter '%s'" % data)
-
-
-    def do_show(self, data):
-        params = data.split()
-        if len(params) < 2:
-            self.do_echo("Not enough parameters")
-            return 
-
+        params = data.split() + [None]
         if params[0] == 'repository':
             self.do_echo(self.get_repository(params[1]))
         elif params[0] == 'policy':
             self.do_echo(self.get_policy(params[1]))
         else:
-            self.do_echo("Invalid parameter '%s'" % params[0])
+            self.error("Invalid parameter '%s'" % data)
 
 
     def do_create(self, data):
-        params = data.split()
-        if len(params) < 2:
-            self.do_echo("Not enough parameters")
-            return 
+        params = data.split() + [None]
+
+        if not (params[0] in ("repository", "policy")):
+            self.error("Invalid parameter '%s'" % params[0])
+            return
 
         try:
-            postdata = " ".join(params[1:])
-            if params[0] == 'repository':
-                print "Create repository", json.loads(postdata))
-            elif params[0] == 'policy':
-                print "Create policy %s" , json.loads(postdata))
-            else:
-                self.do_echo("Invalid parameter '%s'" % params[0])
-
-        except TypeError as e:
-             print e
-        except ValueError as e:
-             print e
+            handler_name = "create_%s_%s" % (params[1], params[0])
+            handler = getattr(self, handler_name)
+            handler()
+        except AttributeError:
+            self.error("Invalid parameter '%s'%" % params[1])
 
 
     def do_update(self, data):
-        params = data.split()
-        if len(params) < 3:
-            self.do_echo("Not enough parameters")
-            return 
+        params = data.split() + [None]
+        if not (params[0] in ("repository", "policy")):
+            self.error("Invalid parameter '%s'" % params[0])
+            return
 
-        try:
-            postdata = " ".join(params[2:])
-            if params[0] == 'repository':
-                print "Update repository " + params[1], \
-                      "%s" % json.loads(postdata))
-            elif params[0] == 'policy':
-                print "Update policy " + params[1], json.loads(postdata)
-            else:
-                self.do_echo("Invalid parameter '%s'" % params[0])
-        
-        except TypeError as e:
-             print e
-        except ValueError as e:
-             print e
+        if params[1] is not None:
+            fetcher = getattr(self, "get_" + params[0])
+            olddata = fetcher(params[1])
+
+            if str(olddata.get("id", None)) != params[1]:
+                self.error("Invalid repository/policy id: '%s'" % params[1])
+                return
+
+            update = {"repository" : self.update_repository,
+                      "policy" : self.update_policy
+                      }.get(params[0])
+            update(olddata)
 
 
     def do_delete(self, data):
-        params = data.split()
-        if len(params) < 2:
-            self.do_echo("Not enough parameters")
+        params = data.split() + [None]
 
         if params[0] == 'repository':
             self.do_echo(self.delete_repository(params[1]))
         elif params[0] == 'policy':
             self.do_echo(self.delete_policy(params[1]))
         else:
-            self.do_echo("Invalid parameter '%s'" % params[0])
+            self.error("Invalid parameter '%s'" % params[0])
 
 
+# utilities
     def get_repository(self, service_id=None):
         url = self.repourl if service_id is None \
                            else "%s/%s" % (self.repourl, service_id)
@@ -159,50 +166,91 @@ class Ranger(HadoopUtil):
 
 
     def delete_repository(self, repo_id):
-        r = Ranger.Delete("%s/%s" % (self.repourl, repo_id), 
-                          auth=self.auth, 
-                          curl=self.curl, expected=(STATUS_NOCONTENT,))
-        if r is not None:
-            return {"status": "ok"}
+        return Ranger.Delete("%s/%s" % (self.repourl, repo_id),
+                             auth=self.auth, curl=self.curl)
 
 
     def delete_policy(self, policy_id):
-        r = Ranger.Delete("%s/%s" % (self.policyurl, policy_id), 
-                          auth=self.auth, 
-                          curl=self.curl, expected=(STATUS_NOCONTENT,))
-        if r is not None:
-            return {"status": "ok"}
+        return Ranger.Delete("%s/%s" % (self.policyurl, policy_id),
+                          auth=self.auth, curl=self.curl)
 
 
-    def create_policy(self, service_type, service_name, policy_name, 
-                            policy_data):
-        if isinstance(policy_data, str):
-            policy_data = json.loads(policy_data)
+    def update_repository(self, repo_data):
+        print repo_data
 
-        policy_data.update(policyName=policy_name,
-                           repositoryName=service_name)
-    
-        return Ranger.Post(self.policyurl, 
-                           auth=self.auth, 
+
+    def update_policy(self, policy_data):
+        print policy_data
+
+
+    def create_hbase_policy(self):
+        print "Creating hbase policy, please input"
+
+        def trueOrfalse(input_str):
+            if input_str.lower() in ("yes", "y"):
+                return True
+            else:
+                return False
+
+        try:
+            policy_data = {
+                "repositoryType" : "hbase",
+                "repositoryName" : get_input("Repository name"),
+                "policyName" : get_input("Policy name"),
+                "tables" : get_input("Table name(s)",
+                                     hint="comma seperated list",
+                                     default="*"),
+                "columnFamilies" : get_input("Column familie(s)",
+                                             hint="comma seperated list",
+                                             default="*"),
+                "columns" : get_input("Column(s)",
+                                      hint="comma seperated list",
+                                      default="*"),
+                "description": get_input("Description", default=""),
+                "isEnabled": get_input("Enabled?", hint="Yes/No",
+                                       default="Yes", convert=trueOrfalse),
+                "isAuditEnabled":get_input("Auditable?", hint="Yes/No",
+                                       default="Yes", convert=trueOrfalse),
+                "isRecursive": get_input("Recursive?", hint="Yes/No",
+                                       default="No", convert=trueOrfalse),
+
+                "tableType": "Inclusion",
+                "columnType": "Inclusion",
+                }
+
+            permmap_list = []
+            while True:
+                perm_map = self.get_permission_map("Read", "Write",
+                                                  "Create", "Admin")
+
+                if len(perm_map["permList"]) == 0:
+                    break
+
+                permmap_list.append(perm_map)
+
+            policy_data["permMapList"] = permmap_list
+
+            self.do_echo( self.__create_policy(policy_data))
+
+        except KeyboardInterrupt:
+            print "Control-C"
+
+        except Exception as e:
+            print e
+
+
+    def __create_policy(self, policy_data):
+        return Ranger.Post(self.policyurl,
+                           auth=self.auth,
                            data=json.dumps(policy_data),
                            curl=self.curl)
 
-
-        dispatcher = getattr(self, "create_%s_policy" % service_type)
-        return dispatcher(service_name, policy_name, policy_data)
-
-
-    def update_policy(self, policy_id, policy_data):
-        if isinstance(policy_data, str):
-            policy_data = json.loads(policy_data)
-
-        if __debug__:
-            print json.dumps(policy_data, indent=4)
-
-        return Ranger.Put("%s/%s" % (self.policyurl, policy_id), 
-                           auth=self.auth, 
-                           data=json.dumps(policy_data), 
+    def __update_policy(self, policy_id, policy_data):
+        return Ranger.Put("%s/%s" % (self.policyurl, policy_id),
+                           auth=self.auth,
+                           data=json.dumps(policy_data),
                            curl=self.curl)
+
 
 
 #

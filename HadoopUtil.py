@@ -66,6 +66,11 @@ def Request(method, url, user=None, auth=None, params=None,
     if user:
         params["user.name"] = user
 
+    if headers is None:
+        headers = {}
+
+    headers.setdefault("Accept", "application/json")
+
     paramstr = "&".join("%s=%s" % (k,v) for k,v in params.items())
 
     from urlparse import urlparse
@@ -91,11 +96,9 @@ def Request(method, url, user=None, auth=None, params=None,
         elif resp.status_code == STATUS_NOTALLOW:
             return "Not Allowed" if text else {"status": "Not Allowed"}
         else:
-            if __debug__: print resp.status_code, resp.text
-            return str(resp.status_code) if text \
-                                     else {"error_code" : resp.status_code}
+            return resp.json()
     except ValueError:
-        return {"status" : "Format error", "text" : resp.text}
+        print {"status" : "Format error", "text" : resp.text}
 
 
 CmdTuple = namedtuple("Command", ["caption", "help"])
@@ -154,6 +157,11 @@ class HadoopUtil(Cmd):
     def set_prompt(self):
         self.prompt = self.baseurl + "> "
  
+
+    def error(self, msg):
+        print msg
+        print "Please press h(elp) for more details"
+
 
     def do_help(self, data):
         print
