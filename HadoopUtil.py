@@ -221,8 +221,11 @@ class HadoopUtil(Cmd):
 
 
     def do_passwd(self, data):
-        if data:
-            self.__passwd = data
+        import getpass
+        try:
+            self.__passwd = getpass.getpass()
+        except EOFError:
+            pass
 
 
     def do_whoami(self, data):
