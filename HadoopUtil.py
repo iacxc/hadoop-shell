@@ -103,9 +103,11 @@ def Request(method, url, user=None, auth=None, params=None,
             return {"status": "Not Allowed"}
         else:
             return resp.json()
-    except ValueError:
+    except ValueError as e:
         print resp.status_code
-        print {"status" : "Format error", "text" : resp.text}
+        print {"status" : "Format error",
+               "error" : str(e),
+               "text" : resp.text}
 
 
 CmdTuple = namedtuple("Command", ["caption", "help"])

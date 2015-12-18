@@ -1,0 +1,104 @@
+#!/usr/bin/python
+
+
+import pypyodbc
+pypyodbc.lowercase = False
+
+def time2str(dt):
+    if dt is None:
+        return "None"
+    else:
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def passOrdeny(v):
+    return "<font color=green>passed</font>" if v \
+        else "<font color=red>denied</font>"
+
+
+def display_audit(dbhost):
+    from bottle import Bottle, run
+
+    app = Bottle()
+
+    @app.route("/hello")
+    def hello():
+        return "Hello World"
+
+    @app.route("/")
+    def root():
+        conn_info = {"Driver"   : "MySQL_cygwin",
+                     "Server"   : dbhost,
+                     "Database" : "ranger_audit",
+                     "UID"      : "ranger_audit",
+                     "PWD"      : "ranger"}
+        connstr = ";".join("%s=%s" % (k,v) for k,v in conn_info.items())
+
+        conn = pypyodbc.connect(connstr)
+        cursor = conn.cursor()
+
+        fields = ["policy_id as 'Policy ID'",
+                  "event_time as 'Event Time'",
+                  "request_user as User",
+                  "resource_type as Type",
+                  "resource_path as 'Resource Name'",
+                  "access_type as 'Access Type'",
+                  "access_result as Result",
+                  "acl_enforcer as 'Access Enforcer'",
+                  "client_ip as 'Client IP'",
+                  "event_count as 'Event Count'"]
+        cursor.execute("""select {fields} from xa_access_audit
+        where repo_name like 'hdp_caiche%'
+        order by event_time desc
+        limit 100 """.format(fields=",".join(fields)))
+
+        theader = """<tr>
+{0}
+</tr>""".format("".join("<th>{0}</th>".format(f[0])
+                        for f in  cursor.description))
+
+        tlines = []
+        for row in cursor.fetchall():
+            datarow = (row["Policy ID"],
+                       time2str(row["Event Time"]),
+                       row["User"],
+                       row["Type"],
+                       row["Resource Name"],
+                       row["Access Type"],
+                       passOrdeny(row["Result"]),
+                       row["Access Enforcer"],
+                       row["Client IP"],
+                       row["Event Count"])
+            tlines.append("""<tr>
+{0}
+</tr>""".format("".join("<td>{0}</td>".format(f) for f in datarow)))
+
+        table = """<table border=1>
+{0}
+{1}
+</table>""".format(theader, "\n".join(tlines))
+
+        html = """<html>
+<body>
+{0}
+</body>
+</html>""".format(table)
+
+        return html
+
+
+    run(app, host="localhost", port=8080)
+
+
+if __name__ == "__main__":
+    from optparse import OptionParser
+
+    parser = OptionParser()
+    parser.add_option("--dbhost")
+
+    opts, args = parser.parse_args()
+
+    display_audit(opts.dbhost)
+
+
+
