@@ -9,11 +9,12 @@ if __name__ == "__main__":
     parser.add_option("--host", default="localhost")
     parser.add_option("-u", "--user", default="caiche")
     parser.add_option("-p", "--password")
+    parser.add_option("--cluster", default="default")
 
     opts, args = parser.parse_args()
 
     if __debug__: print opts, args
 
-    knox = Knox(opts.host, opts.user, opts.password)
+    knox = Knox(opts.host, opts.user, opts.password, opts.cluster)
 
     knox.cmdloop()

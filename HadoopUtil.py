@@ -77,11 +77,14 @@ def Request(method, url, user=None, auth=None, params=None,
     from urlparse import urlparse
     uri = urlparse(url)
 
-    url = url + ("&" if len(uri.query) > 0 else "?") + paramstr
+    if len(params) > 0:
+        url = url + ("&" if len(uri.query) > 0 else "?") + paramstr
 
     if curl:
-        print "curl -X {method}{auth}{data}{url}".format(method=method,
-               auth="" if auth is None else " --user '%s:%s'" % (auth),
+        print "curl -X {method}{auth}{header}{data}{url}".format(method=method,
+               auth="" if auth is None else " -u '%s:%s'" % (auth),
+               header="" if headers is None else " -H '" + ",".join(
+                       "%s:%s" % (k,v) for k,v in headers.items()) + "'",
                data="" if data is None else " -d '%s'" % data,
                url=(" -k '%s'" if url.startswith("https") else " '%s'") % url)
 
@@ -101,6 +104,7 @@ def Request(method, url, user=None, auth=None, params=None,
         else:
             return resp.json()
     except ValueError:
+        print resp.status_code
         print {"status" : "Format error", "text" : resp.text}
 
 
@@ -112,11 +116,11 @@ class HadoopUtil(Cmd):
         CmdTuple("echo",                "Echo the message"),
         CmdTuple("curl [on|off]",       "Display or set curl option"),
         CmdTuple("whoami",              "Display the current user"),
-        CmdTuple("prefix [prefix]",     "Display or set the prefix"),
-        CmdTuple("host [host]",         "Display or set the host"),
-        CmdTuple("port [port]",         "Display or set the port"),
+        CmdTuple("prefix [prefix>",     "Set the prefix"),
+        CmdTuple("host [host[",         "Set the host"),
+        CmdTuple("port [port[",         "Set the port"),
         CmdTuple("user [username]",     "Set the currentuser"),
-        CmdTuple("passwd [password]",   "Set the password"),
+        CmdTuple("passwd",              "Set the password"),
         CmdTuple("quit or exit or ^D",  "Exit the program") ]
 
     def __init__(self, prefix, host, port, user, passwd=None):

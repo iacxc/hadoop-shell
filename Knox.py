@@ -14,24 +14,27 @@ from WebHCat import WebHCat
 class Knox(HadoopUtil):
 #                  "cluster_info", "cluster_metrics", "get_node",
 
+    rootpath = "/api/v1"
     commands = HadoopUtil.commands + [
         "",
+        CmdTuple("version",                 "Show the version"),
         CmdTuple("ls <file|dir>",           "List files/directoies"),
         CmdTuple("cat <file>",              "Show a text file"),
-        CmdTuple("topo [topology]",         "Set or show the topology"),
-        CmdTuple("show databases",           "List all databases"),
-        CmdTuple("show tables <db>",         "List all tables"),
+        CmdTuple("cluster [cluster_name]",  "Set or show the cluster name"),
+        CmdTuple("show topo [topo_name]",   "Show the topologies or a topology"),
+        CmdTuple("show databases",          "List all databases"),
+        CmdTuple("show tables <db>",        "List all tables"),
         CmdTuple("desc database <db>",      "Show detals of current database"),
         CmdTuple("desc table <db> <table>", "Show detals of a table"),
     ]
-    def __init__(self, host, user, password, topo="default"):
+    def __init__(self, host, user, password, cluster="default"):
         HadoopUtil.__init__(self, "https", host, 8443, user, password)
-        self.__topo = topo
+        self.__cluster = cluster
 
 
     @property
     def weburl(self):
-        return self.baseurl + "/gateway/" + self.__topo
+        return self.baseurl + "/gateway/" + self.__cluster
 
     @property
     def hdfsurl(self):
@@ -45,12 +48,27 @@ class Knox(HadoopUtil):
     def rmurl(self):
         return self.weburl + ResourceManager.rootpath
 
+    @property
+    def apiurl(self):
+        return self.weburl + self.rootpath
 
-    def do_topo(self, topo):
-        if topo:
-            self.__topo = topo
+
+    @staticmethod
+    def Get(url, auth=None, params=None, curl=False):
+        return Request("GET", url, auth=auth, params=params, curl=curl)
+
+
+    def do_cluster(self, cluster):
+        if cluster:
+            self.__cluster = cluster
         else:
-            self.do_echo(self.__topo)
+            self.do_echo(self.__cluster)
+
+
+
+    def do_version(self, data):
+        self.do_echo(self.Get(self.apiurl + "/version",
+                        auth=self.auth, curl=self.curl))
 
 
     def do_ls(self, dirname):
@@ -77,7 +95,9 @@ class Knox(HadoopUtil):
     def do_show(self, data):
         if data:
             params = data.split()
-            if len(params) == 1 and params[0] == "databases":
+            if len(params) > 0 and params[0].startswith("topo"):
+                self.do_echo(self.get_topo("".join(params[1:])))
+            elif len(params) == 1 and params[0] == "databases":
                 self.do_echo(self.get_database())
             elif len(params) == 2 and params[0] == "tables":
                 self.do_echo(self.get_table(params[1]))
@@ -96,12 +116,20 @@ class Knox(HadoopUtil):
                 self.do_echo("Invalid parameter '%s'" % params[0])
 
 
-    def cluster_info(self):
+    def get_topo(self, topology):
+        url = self.apiurl + "/topologies"
+        if topology:
+            url += "/%s" % topology
+
+        return self.Get(url, auth=self.auth, curl=self.curl)
+
+
+    def get_cluster_info(self):
         return ResourceManager.Get(self.rmurl + "/info", 
                                    auth=self.auth, curl=self.__curl)
 
 
-    def cluster_metrics(self):
+    def get_cluster_metrics(self):
         return ResourceManager.Get(self.rmurl + "/metrics", 
                                    auth=self.auth, curl=self.__curl)
 
@@ -112,6 +140,7 @@ class Knox(HadoopUtil):
             url += "/%s" % nodeid
        
         return ResourceManager.Get(url, auth=self.auth, curl=self.__curl)
+
 
 
     def get_database(self, dbname=None):

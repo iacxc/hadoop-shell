@@ -245,7 +245,8 @@ class WebHdfs(HadoopUtil):
         if filename[0] != "/":
             filename = "%s/%s" % (self.cwd, filename)
         r = self.Put(self.weburl + filename, "chmod", self.user,
-                     params={"permission" : perm}, curl=self.curl)
+                     params={"permission" : perm}, text=True,
+                     curl=self.curl)
 
         self.do_echo({"status" : "OK"} if r is not None else "Failed")
 
@@ -264,7 +265,8 @@ class WebHdfs(HadoopUtil):
             owner, group = owner.split(":")
 
         r = self.Put(self.weburl + filename, "chown", self.user,
-                     params={"owner" : owner, "group" : group}, 
+                     params={"owner" : owner, "group" : group},
+                     text=True,
                      curl=self.curl)
 
         self.do_echo({"status" : "OK"} if r is not None else "Failed")
