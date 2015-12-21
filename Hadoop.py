@@ -1,3 +1,6 @@
+"""
+   provide some utitlies using 'hadoop/hdfs' cmdline tool
+"""
 
 __all__ = ("get_distro",
            "disk_usage",
@@ -32,7 +35,7 @@ def get_distro():
 
 def disk_usage(hdfs_path):
     """ return a map of file name to size, using hdfs command line """
-    cmdstr = " ".join(["hadoop", "fs", "-du", hdfs_path])
+    cmdstr = " ".join(["hdfs", "fs", "-du", hdfs_path])
     retcode, output = Common.run_cmd(cmdstr)
 
     if retcode == Common.SUCCESS:
@@ -52,7 +55,7 @@ def list_files(hdfs_path, recursive=False):
     """ return a list of file objects , using hdfs command line"""
     ls_opt = "-R" if recursive else ""
 
-    cmdstr = " ".join(["hadoop", "fs", "-ls", ls_opt, hdfs_path])
+    cmdstr = " ".join(["hdfs", "fs", "-ls", ls_opt, hdfs_path])
 
     retcode, output = Common.run_cmd(cmdstr)
 

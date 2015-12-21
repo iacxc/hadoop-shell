@@ -1,23 +1,25 @@
 #!/usr/bin/python
 
 
+from collections import namedtuple
+ColType = namedtuple("ColType", ["value", "color"])
 import pypyodbc
 pypyodbc.lowercase = False
+
 
 def time2str(dt):
     if dt is None:
         return "None"
     else:
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
+        return dt.strftime("%Y-%m-%d#%H:%M:%S")
 
 
 def passOrdeny(v):
-    return "<font color=green>passed</font>" if v \
-        else "<font color=red>denied</font>"
+    return ColType("passed", "green") if v else ColType("denied", "red")
 
 
 def display_audit(dbhost):
-    from bottle import Bottle, run
+    from bottle import Bottle, run, template
 
     app = Bottle()
 
@@ -27,7 +29,7 @@ def display_audit(dbhost):
 
     @app.route("/")
     def root():
-        conn_info = {"Driver"   : "MySQL_cygwin",
+        conn_info = {"Dsn"      : "mysql",
                      "Server"   : dbhost,
                      "Database" : "ranger_audit",
                      "UID"      : "ranger_audit",
@@ -52,42 +54,26 @@ def display_audit(dbhost):
         order by event_time desc
         limit 100 """.format(fields=",".join(fields)))
 
-        theader = """<tr>
-{0}
-</tr>""".format("".join("<th>{0}</th>".format(f[0])
-                        for f in  cursor.description))
-
-        tlines = []
+        datarows = []
         for row in cursor.fetchall():
-            datarow = (row["Policy ID"],
-                       time2str(row["Event Time"]),
-                       row["User"],
-                       row["Type"],
-                       row["Resource Name"],
-                       row["Access Type"],
+            datarows.append((ColType(row["Policy ID"], None),
+                       ColType(time2str(row["Event Time"]), None),
+                       ColType(row["User"], None),
+                       ColType(row["Type"], None),
+                       ColType(row["Resource Name"], None),
+                       ColType(row["Access Type"], None),
                        passOrdeny(row["Result"]),
-                       row["Access Enforcer"],
-                       row["Client IP"],
-                       row["Event Count"])
-            tlines.append("""<tr>
-{0}
-</tr>""".format("".join("<td>{0}</td>".format(f) for f in datarow)))
+                       ColType(row["Access Enforcer"], None),
+                       ColType(row["Client IP"], None),
+                       ColType(row["Event Count"], None)))
 
-        table = """<table border=1>
-{0}
-{1}
-</table>""".format(theader, "\n".join(tlines))
-
-        html = """<html>
-<body>
-{0}
-</body>
-</html>""".format(table)
-
-        return html
+        return template("ranger-audit.tpl",
+                        colnames=[f[0] for f in cursor.description],
+                        rows=datarows)
 
 
-    run(app, host="localhost", port=8080)
+    import socket
+    run(app, host=socket.getfqdn(), port=9099, debug=True)
 
 
 if __name__ == "__main__":
