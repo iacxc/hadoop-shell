@@ -70,8 +70,6 @@ def Request(method, url, user=None, auth=None, params=None,
     if headers is None:
         headers = {}
 
-    headers.setdefault("Accept", "application/json")
-
     paramstr = "&".join("%s=%s" % (k,v) for k,v in params.items())
 
     from urlparse import urlparse
