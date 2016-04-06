@@ -21,9 +21,9 @@ HADOOPDISTRO = Common.make_enum( "HADOOPDISTRO",
 
 def get_distro():
     """ find the distribution of hadoop """
-
-    dirs_to_search = {HADOOPDISTRO.HORTONWORK : "/var/run/ambari-*",
-                      HADOOPDISTRO.CLOUDERA : "/var/run/cloudera-*",
+    startup_dir = "/etc/init.d"
+    dirs_to_search = {HADOOPDISTRO.HORTONWORK : startup_dir + "/ambari-*",
+                      HADOOPDISTRO.CLOUDERA : startup_dir + "/cloudera-*",
                       HADOOPDISTRO.MAPR : "/etc/rc*/init*/*mapr-warden*"}
 
     for distro, path in dirs_to_search.items():
@@ -82,5 +82,3 @@ def list_files(hdfs_path, recursive=False):
         return files
     else:
         return []
-
-
