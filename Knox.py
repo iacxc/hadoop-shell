@@ -163,39 +163,3 @@ class Knox(HadoopUtil):
 # ---- main ----
 if __name__ == "__main__":
     print "Knox"
-#    import sys
-#    import json
-#    from optparse import OptionParser
-#
-#    parser = OptionParser()
-#    parser.add_option("--host", default="localhost")
-#    parser.add_option("--curl", action="store_true", default=False)
-#    parser.add_option("-u", "--user", default="caiche")
-#    parser.add_option("-p", "--password", default="caiche-password")
-#
-#    opts, args = parser.parse_args()
-#
-#    if __debug__: print opts, args
-#
-#    if len(args) < 1:
-#        print "Missing arguments, supported methods are", Knox.operations
-#        sys.exit(1)
-#
-#    knox = Knox(opts.host, opts.user, opts.password, curl=opts.curl)
-#
-#    method = args[0]
-#    if not method in knox:
-#        print "Unsupported method '%s'" % method
-#        sys.exit(1)
-#
-#    try:
-#        fun = getattr(knox, method)
-#        result = fun(*args[1:])
-#        if isinstance(result, (dict, list)):
-#            print json.dumps(result, indent=4)
-#        else:
-#            print result
-#
-#    except AttributeError as e:
-#        print e
-#

@@ -124,38 +124,3 @@ class WebHCat(HadoopUtil):
 # ---- main ----
 if __name__ == "__main__":
     print "WebHCatalog"
-#    import sys
-#    import json
-#    from optparse import OptionParser
-#
-#    parser = OptionParser()
-#    parser.add_option("--host", default="localhost")
-#    parser.add_option("--curl", action="store_true", default=False)
-#    parser.add_option("-u", "--user", default="caiche")
-#
-#    opts, args = parser.parse_args()
-#
-#    if __debug__: print opts, args
-#
-#    if len(args) < 1:
-#        print "Missing arguments, supported methods are", WebHCat.operations
-#        sys.exit(1)
-#
-#    hcatalog = WebHCat(opts.host, opts.user, opts.curl)
-#
-#    method = args[0]
-#    if not method in hcatalog:
-#        print "Unsupported method '%s'" % method
-#        sys.exit(1)
-#
-#    try:
-#        fun = getattr(hcatalog, method)
-#        result = fun(*args[1:])
-#        if isinstance(result, (dict, list)):
-#            print json.dumps(result, indent=4)
-#        else:
-#            print result
-#
-#    except AttributeError as e:
-#        print e
-#

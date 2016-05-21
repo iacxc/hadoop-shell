@@ -257,35 +257,3 @@ class Ranger(HadoopUtil):
 # ---- main ----
 if __name__ == "__main__":
     print "Ranger"
-#    import sys
-#    import json
-#    from optparse import OptionParser
-#
-#    parser = OptionParser()
-#    parser.add_option("--host", default="localhost")
-#    parser.add_option("--curl", action="store_true", default=False)
-#    parser.add_option("-u", "--user", default="caiche")
-#    parser.add_option("-p", "--password", default="caiche-password")
-#
-#    opts, args = parser.parse_args()
-#
-#    if __debug__: print opts, args
-#
-#    if len(args) < 1:
-#        print "Missing arguments, supported methods are", Ranger.operations
-#        sys.exit(1)
-#
-#    ranger = Ranger(opts.host, opts.user, opts.password, opts.curl)
-#
-#    method = args[0]
-#    if not method in ranger:
-#        print "Unsupported method '%s'" % method
-#        sys.exit(1)
-#
-#    try:
-#        fun = getattr(ranger, method)
-#        print json.dumps(fun(*args[1:]), indent=4)
-#
-#    except AttributeError as e:
-#        print e
-#
