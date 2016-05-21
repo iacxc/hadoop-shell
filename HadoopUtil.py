@@ -114,11 +114,13 @@ class HadoopUtil(Cmd):
         CmdTuple("curl [on|off]",       "Display or set curl option"),
         CmdTuple("whoami",              "Display the current user"),
         CmdTuple("prefix [prefix>",     "Set the prefix"),
-        CmdTuple("host [host[",         "Set the host"),
-        CmdTuple("port [port[",         "Set the port"),
+        CmdTuple("host [host]",         "Set the host"),
+        CmdTuple("port [port]",         "Set the port"),
         CmdTuple("user [username]",     "Set the currentuser"),
         CmdTuple("passwd",              "Set the password"),
+        CmdTuple("get <url>",           "Get the url"),
         CmdTuple("quit or exit or ^D",  "Exit the program") ]
+
 
     def __init__(self, prefix, host, port, user, passwd=None):
         Cmd.__init__(self)
@@ -227,6 +229,10 @@ class HadoopUtil(Cmd):
             self.__passwd = getpass.getpass()
         except EOFError:
             pass
+
+
+    def do_get(self, data):
+        self.do_echo(Request('GET', data, auth=self.auth, curl=self.curl))
 
 
     def do_whoami(self, data):

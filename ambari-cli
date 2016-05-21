@@ -7,8 +7,8 @@ if __name__ == "__main__":
 
     parser = OptionParser()
     parser.add_option("--host", default="localhost")
-    parser.add_option("-u", "--user", default="caiche")
-    parser.add_option("-p", "--password")
+    parser.add_option("-u", "--user", default="admin")
+    parser.add_option("-p", "--password", default="admin")
 
     opts, args = parser.parse_args()
 
