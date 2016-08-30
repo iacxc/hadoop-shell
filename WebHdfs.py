@@ -213,7 +213,7 @@ class WebHdfs(HadoopUtil):
     def do_cat(self, filename):
         if filename:
             if filename[0] != "/":
-                filename = "/user/%s/%s" % (self.user, filename)
+                filename = "%s/%s" % (self.cwd, filename)
             self.do_echo(self.Get(self.weburl + filename, "cat", self.user,
                         curl=self.curl, text=True))
         else:

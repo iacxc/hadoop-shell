@@ -18,10 +18,10 @@ class WebHCat(HadoopUtil):
         CmdTuple("version [component]",    "Show the version"),
         CmdTuple("use <dbname>",           "Change the current db"),
         CmdTuple("runddl <command>",       "Run ddl command"),
-        CmdTuple("show databases",          "List all databases"),
-        CmdTuple("show tables",             "List all tables"),
-        CmdTuple("desc database <dbname>", "Show detals of current database"),
-        CmdTuple("desc table <table>",     "Show detals of a table"),
+        CmdTuple("show databases",         "List all databases"),
+        CmdTuple("show tables",            "List all tables"),
+        CmdTuple("desc database <dbname>", "Show details of current database"),
+        CmdTuple("desc table <table>",     "Show details of a table"),
     ]
 
     def __init__(self, host, user):

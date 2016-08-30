@@ -43,9 +43,9 @@ def getpermission(permission):
 def gen_fileinfo(fs):
     from datetime import datetime
     ts2str = lambda timestamp: \
-           datetime.fromtimestamp(timestamp * 0.001).strftime("%m %d %H:%M")
+           datetime.fromtimestamp(timestamp * 0.001).strftime("%Y-%m-%d %H:%M")
 
-    return "%s%-10s  %-10s%-10s%-8s%-12s%-20s" % (
+    return "%s%-10s  %-10s %-10s %8s %s %s" % (
          'd' if fs.get("type", "FILE") == "DIRECTORY" else '-',
          getpermission(fs.get("permission", "000")),
          fs.get("owner", "<no user>"),
