@@ -1,6 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/python -O
+
+from __future__ import print_function
 
 from Ambari import Ambari
+
 
 if __name__ == "__main__":
     from optparse import OptionParser
@@ -12,7 +15,8 @@ if __name__ == "__main__":
 
     opts, args = parser.parse_args()
 
-    if __debug__: print opts, args
+    if __debug__:
+        print(opts, args)
 
     ambari = Ambari(opts.host, opts.user, opts.password)
 

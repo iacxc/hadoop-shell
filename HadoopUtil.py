@@ -1,4 +1,6 @@
 
+from __future__ import print_function
+
 
 #exports
 __all__ = ("HadoopUtil", "Request",
@@ -9,11 +11,11 @@ __all__ = ("HadoopUtil", "Request",
            )
 
 
-import requests
-import json
-import sys
-from cmd import Cmd
 from collections import namedtuple
+from cmd import Cmd
+import json
+import requests
+import sys
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -56,7 +58,7 @@ def gen_fileinfo(fs):
 
 
 def Request(method, url, user=None, auth=None, params=None, 
-                         data=None, headers=None, 
+                         data=None, headers=None, proxies=None,
                          curl=False, text=False, expected=(STATUS_OK,)):
     if params is None:
         params = {}
@@ -76,15 +78,15 @@ def Request(method, url, user=None, auth=None, params=None,
         url = url + ("&" if len(uri.query) > 0 else "?") + paramstr
 
     if curl:
-        print "curl -X {method}{auth}{header}{data}{url}".format(method=method,
+        print("curl -X {method}{auth}{header}{data}{url}".format(method=method,
                auth="" if auth is None else " -u '%s:%s'" % (auth),
                header="" if headers is None else " -H '" + ",".join(
                        "%s:%s" % (k,v) for k,v in headers.items()) + "'",
                data="" if data is None else " -d '%s'" % data,
-               url=(" -k '%s'" if url.startswith("https") else " '%s'") % url)
+               url=(" -k '%s'" if url.startswith("https") else " '%s'") % url))
 
     resp = requests.request(method, url, auth=auth, verify=False, 
-                            data=data, headers=headers)
+                            data=data, headers=headers, proxies=proxies)
     try:
         if resp.status_code in expected:
             return resp.text if text else resp.json()
@@ -99,14 +101,14 @@ def Request(method, url, user=None, auth=None, params=None,
         else:
             return resp.json()
     except ValueError as e:
-        print resp.status_code
-        print {"status" : "Format error",
+        print(resp.status_code)
+        print({"status" : "Format error",
                "error" : str(e),
-               "text" : resp.text}
+               "text" : resp.text})
 
 
 CmdTuple = namedtuple("Command", ["caption", "help"])
-class HadoopUtil(Cmd):
+class HadoopUtil(Cmd, object):
     """ base class for a bunch of hadoop utilities """
     commands = [
         CmdTuple("help",                "Show this help page"),
@@ -116,24 +118,24 @@ class HadoopUtil(Cmd):
         CmdTuple("prefix [prefix>",     "Set the prefix"),
         CmdTuple("host [host]",         "Set the host"),
         CmdTuple("port [port]",         "Set the port"),
+        CmdTuple("proxy [proxy]",       "Get/Set the proxy"),
         CmdTuple("user [username]",     "Set the currentuser"),
         CmdTuple("passwd",              "Set the password"),
         CmdTuple("get <url>",           "Get the url"),
         CmdTuple("quit or exit or ^D",  "Exit the program") ]
 
-
-    def __init__(self, prefix, host, port, user, passwd=None):
-        Cmd.__init__(self)
+    def __init__(self, prefix, host, port, user, passwd=None, debug=True):
+        super(HadoopUtil, self).__init__()
 
         self.__prefix = prefix
         self.__host = host
         self.__port = port
         self.__user = user
         self.__passwd = passwd
-        self.__curl = False
+        self.proxies = {'http': None, 'https': None}
+        self.curl = False
 
         self.set_prompt()
-
 
     @property
     def banner(self):
@@ -155,73 +157,82 @@ class HadoopUtil(Cmd):
     def auth(self):
         return (self.user, self.passwd)
 
-    @property
-    def curl(self):
-        return self.__curl
+    def Get(self, url, **kwargs):
+        result = Request("GET", url, auth=self.auth, curl=self.curl,
+                         proxies=self.proxies,
+                         **kwargs)
+        self.debug(result["href"])
+        return result
 
+    def Put(self, url, **kwargs):
+        result = Request("PUT", url, auth=self.auth, curl=self.curl,
+                         proxies=self.proxies,
+                         **kwargs)
+        return result
 
     def set_prompt(self):
         self.prompt = self.baseurl + "> "
- 
 
     def error(self, msg):
-        print msg
-        print "Please press h(elp) for more details"
+        self.do_echo(msg)
+        self.do_echo("Please press h(elp) for more details")
 
+    def debug(self, msg):
+        if self.debug:
+            self.do_echo(msg)
+
+    def do_echo(self, data=''):
+        if isinstance(data, dict):
+            print(json.dumps(data, indent=4))
+        else:
+            print(data)
 
     def do_help(self, data):
-        print
-        print self.banner
-        print
-        print "Commands:"
+        self.do_echo()
+        self.do_echo(self.banner)
+        self.do_echo()
+        self.do_echo("Commands:")
         for cmditem in self.commands:
             if isinstance(cmditem, CmdTuple):
-                print "    %-35s- %-s" % cmditem
+                self.do_echo("    %-35s- %-s" % cmditem)
             else:
-                print
+                self.do_echo()
 
     do_h = do_help
-
-
-    def do_echo(self, data):
-        if isinstance(data, dict):
-            print json.dumps(data, indent=4)
-        else:
-            print data
-
 
     def do_curl(self, data):
         """ Set or Display the curl option """
         if data.upper()  == "ON":
-            self.__curl = True
+            self.curl = True
         elif data.upper() == "OFF":
-            self.__curl = False
+            self.curl = False
         else:
-            print "curl is %s" % ("ON" if self.__curl else "OFF")
-
+            self.do_echo("curl is %s" % ("ON" if self.curl else "OFF"))
 
     def do_prefix(self, data):
         if data:
-            self.__prefix = data
+            self.prefix = data
             self.set_prompt()
-
 
     def do_host(self, data):
         if data:
             self.__host = data
             self.set_prompt()
 
-
     def do_port(self, data):
         if data:
             self.__port = int(data)
             self.set_prompt()
 
+    def do_proxy(self, data):
+        if data:
+            self.proxies = json.loads(data)
+        else:
+            self.do_echo(self.proxies)
 
     def do_user(self, data):
         if data:
             self.__user = data
-
 
     def do_passwd(self, data):
         import getpass
@@ -230,19 +241,15 @@ class HadoopUtil(Cmd):
         except EOFError:
             pass
 
-
     def do_get(self, data):
         self.do_echo(Request('GET', data, auth=self.auth, curl=self.curl))
 
-
     def do_whoami(self, data):
-        print self.user
-
+        self.do_echo(self.user)
 
     def do_EOF(self, data):
-        print "quit"
+        self.do_echo("quit")
         return True
-
 
     def do_exit(self, data):
         return True
@@ -252,27 +259,25 @@ class HadoopUtil(Cmd):
 
     do_q = do_quit
 
-
     def postcmd(self, stop, line):
        return stop
 
-
     def postloop(self):
-        print "Exit..."
-
+        self.do_echo("Exit...")
 
     def cmdloop(self):
+        self.do_echo("Welcome to the %s" % self.banner)
         while True:
             try:
-                Cmd.cmdloop(self)
+                super(HadoopUtil, self).cmdloop()
                 sys.exit(0)
             except KeyboardInterrupt:
-                print "\nControl-C"
+                self.do_echo("\nControl-C")
                 sys.exit(1)
             except Exception as e:
-                print e
+                self.do_echo(e)
 
 #
 # ---- main ----
 if __name__ == "__main__":
-    print "HadoopUtil"
+    print("HadoopUtil")
