@@ -90,21 +90,24 @@ def Request(method, url, user=None, auth=None, params=None,
     try:
         if resp.status_code in expected:
             return resp.text if text else resp.json()
+        elif resp.status_code == STATUS_CREATED:
+            return {"status": "created"}
         elif resp.status_code == STATUS_UNAUTHORIZED:
-            return {"status" : "Unauthorized"}
+            return {"status": "Unauthorized"}
         elif resp.status_code == STATUS_FORBIDDEN:
-            return {"status" : "Forbidden"}
+            return {"status": "Forbidden"}
         elif resp.status_code == STATUS_NOTFOUND:
-            return {"status" : "Not Found"}
+            return {"status": "Not Found"}
         elif resp.status_code == STATUS_NOTALLOW:
             return {"status": "Not Allowed"}
         else:
             return resp.json()
     except ValueError as e:
         print(resp.status_code)
-        print({"status" : "Format error",
-               "error" : str(e),
-               "text" : resp.text})
+        if resp.text:
+            return {"status": "Format error",
+                   "error": str(e),
+                   "text": resp.text}
 
 
 CmdTuple = namedtuple("Command", ["caption", "help"])
@@ -161,11 +164,22 @@ class HadoopUtil(Cmd, object):
         result = Request("GET", url, auth=self.auth, curl=self.curl,
                          proxies=self.proxies,
                          **kwargs)
-        self.debug(result["href"])
         return result
 
     def Put(self, url, **kwargs):
         result = Request("PUT", url, auth=self.auth, curl=self.curl,
+                         proxies=self.proxies,
+                         **kwargs)
+        return result
+
+    def Post(self, url, **kwargs):
+        result = Request("POST", url, auth=self.auth, curl=self.curl,
+                         proxies=self.proxies,
+                         **kwargs)
+        return result
+
+    def Delete(self, url, **kwargs):
+        result = Request("DELETE", url, auth=self.auth, curl=self.curl,
                          proxies=self.proxies,
                          **kwargs)
         return result
@@ -194,7 +208,7 @@ class HadoopUtil(Cmd, object):
         self.do_echo("Commands:")
         for cmditem in self.commands:
             if isinstance(cmditem, CmdTuple):
-                self.do_echo("    %-35s- %-s" % cmditem)
+                self.do_echo("    %-45s- %-s" % cmditem)
             else:
                 self.do_echo()
 
@@ -242,7 +256,7 @@ class HadoopUtil(Cmd, object):
             pass
 
     def do_get(self, data):
-        self.do_echo(Request('GET', data, auth=self.auth, curl=self.curl))
+        self.do_echo(self.Get(data))
 
     def do_whoami(self, data):
         self.do_echo(self.user)
