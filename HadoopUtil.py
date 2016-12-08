@@ -109,6 +109,31 @@ def Request(method, url, user=None, auth=None, params=None,
                    "error": str(e),
                    "text": resp.text}
 
+def print_list(titles, lines):
+    """ print a list """
+    sizes = [len(t) for t in titles]
+
+    for line in lines:
+        for i, s in enumerate(sizes):
+            sizes[i] = max(sizes[i], len(str(line[i])))
+
+    formats = []
+    seperators = []
+    for s in sizes:
+        formats.append("%%-%ds" % s)
+        seperators.append("-" * s)
+
+    formatstr = "|" + "|".join(formats) + "|"
+    seperator = "+" + "+".join(seperators) + "+"
+
+    print(seperator)
+    print(formatstr % titles)
+    print(seperator)
+    for line in lines:
+        print(formatstr % line)
+
+    print(seperator)
+
 
 CmdTuple = namedtuple("Command", ["caption", "help"])
 class HadoopUtil(Cmd, object):
@@ -135,6 +160,8 @@ class HadoopUtil(Cmd, object):
         self.__port = port
         self.__user = user
         self.__passwd = passwd
+        self.__debug = debug
+
         self.proxies = {'http': None, 'https': None}
         self.curl = False
 
@@ -161,26 +188,22 @@ class HadoopUtil(Cmd, object):
         return (self.user, self.passwd)
 
     def Get(self, url, **kwargs):
-        result = Request("GET", url, auth=self.auth, curl=self.curl,
-                         proxies=self.proxies,
+        result = Request("GET", url, curl=self.curl, proxies=self.proxies,
                          **kwargs)
         return result
 
     def Put(self, url, **kwargs):
-        result = Request("PUT", url, auth=self.auth, curl=self.curl,
-                         proxies=self.proxies,
+        result = Request("PUT", url, curl=self.curl, proxies=self.proxies,
                          **kwargs)
         return result
 
     def Post(self, url, **kwargs):
-        result = Request("POST", url, auth=self.auth, curl=self.curl,
-                         proxies=self.proxies,
+        result = Request("POST", url, curl=self.curl, proxies=self.proxies,
                          **kwargs)
         return result
 
     def Delete(self, url, **kwargs):
-        result = Request("DELETE", url, auth=self.auth, curl=self.curl,
-                         proxies=self.proxies,
+        result = Request("DELETE", url, curl=self.curl, proxies=self.proxies,
                          **kwargs)
         return result
 
@@ -192,12 +215,14 @@ class HadoopUtil(Cmd, object):
         self.do_echo("Please press h(elp) for more details")
 
     def debug(self, msg):
-        if self.debug:
+        if self.__debug:
             self.do_echo(msg)
 
     def do_echo(self, data=''):
-        if isinstance(data, dict):
+        if type(data).__name__  == 'dict':
             print(json.dumps(data, indent=4))
+        elif type(data).__name__ in ('list', 'tuple'):
+            print_list(*data)
         else:
             print(data)
 
@@ -206,9 +231,9 @@ class HadoopUtil(Cmd, object):
         self.do_echo(self.banner)
         self.do_echo()
         self.do_echo("Commands:")
-        for cmditem in self.commands:
-            if isinstance(cmditem, CmdTuple):
-                self.do_echo("    %-45s- %-s" % cmditem)
+        for item in self.commands:
+            if isinstance(item, CmdTuple):
+                self.do_echo("    %-45s\n                     - %-s" % item)
             else:
                 self.do_echo()
 

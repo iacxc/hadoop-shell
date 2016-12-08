@@ -5,18 +5,24 @@ from __future__ import print_function
 from Ambari import Ambari
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     from optparse import OptionParser
 
     parser = OptionParser()
-    parser.add_option("--host", default="localhost")
-    parser.add_option("-u", "--user", default="admin")
-    parser.add_option("-p", "--password", default="admin")
+    parser.add_option('--host')
+    parser.add_option('-u', '--user', default='admin')
+    parser.add_option('-p', '--password', default='admin')
 
     opts, args = parser.parse_args()
 
     if __debug__:
         print(opts, args)
+
+    if opts.host is None:
+        if len(args) > 0:
+            opts.host = args[0]
+        else:
+            opts.host = 'localhost'
 
     ambari = Ambari(opts.host, opts.user, opts.password)
 

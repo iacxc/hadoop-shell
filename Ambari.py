@@ -47,12 +47,20 @@ def get_component_url(cluster, service, component):
                      cluster, service.upper(), component.upper()))
 
 
+def get_alert_url(cluster, alert_id=None):
+    if alert_id is None:
+        return quote("/clusters/%s/alert_definitions" % cluster)
+    else:
+        return quote("/clusters/%s/alert_definitions/%d" % (cluster, alert_id))
+
+
 url_for = {
     "cluster": get_cluster_url,
     "host": get_host_url,
     "service": get_service_url,
     "component": get_component_url,
     "host_component": get_host_component_url,
+    "alert": get_alert_url,
 }
 
 
@@ -60,31 +68,43 @@ class Ambari(HadoopUtil):
     rootpath = "/api/v1"
     commands = HadoopUtil.commands + [
         "",
-        CmdTuple("list",                       "List all clusters"),
-        CmdTuple("list hosts [cluster]",       "List all hosts"),
+        CmdTuple("list",
+                 "List all clusters"),
+        CmdTuple("list hosts [cluster]",
+                 "List hosts"),
         CmdTuple("list host_components <cluster> [host]",
-                                               "List all hosts together with components"),
-        CmdTuple("list services <cluster>",    "List all services in cluster"),
+                 "List hosts together with components"),
+        CmdTuple("list services <cluster> [service]",
+                 "List services together with components"),
+        CmdTuple("list alerts <cluster>",
+                 "List all alerts"),
         "",
-        CmdTuple("show <cluster>",             "Show a cluster"),
+        CmdTuple("show <cluster>",
+                 "Show a cluster"),
         CmdTuple("show component <cluster> <service> <component>",
-                                               "Show a component"),
+                 "Show a component"),
         "",
         CmdTuple("add service <cluster> <service>",
-                                               "Add a service"),
+                 "Add a service"),
         CmdTuple("add component <cluster> <service> <component>",
-                                               "Add a component"),
+                 "Add a component"),
+        CmdTuple("add host_component <cluster> <host> <component>",
+                 "Add a component on a host"),
+
+        CmdTuple("install service <cluster> <service>",
+                 "Install a service"),
+
         CmdTuple("start service <cluster> <service>",
-                                               "Start a service"),
+                 "Start a service"),
         CmdTuple("stop service <cluster> <service>",
-                                               "Stop a service"),
+                 "Stop a service"),
         CmdTuple("delete service <cluster> <service>",
-                                               "Delete a service"),
+                 "Delete a service"),
         CmdTuple("start component <cluster> <host> <component>",
-                                               "Start a component"),
+                 "Start a component"),
         CmdTuple("stop component <cluster> <host> <component>",
-                                               "Stop a component"),
-        ]
+                 "Stop a component"),
+    ]
 
     def __init__(self, host, user, passwd, debug=True):
         super(Ambari, self).__init__("http", host, 8080, user, passwd, debug)
@@ -98,14 +118,25 @@ class Ambari(HadoopUtil):
     def weburl(self):
         return self.baseurl + self.rootpath
 
-    def Put(self, url, **kwargs):
-        return super(Ambari, self).Put(url, headers=self.headers, **kwargs)
+    def Get(self, url):
+        return super(Ambari, self).Get(url, auth=self.auth)
 
-    def Post(self, url, **kwargs):
-        return super(Ambari, self).Post(url, headers=self.headers, **kwargs)
+    def Put(self, url, data=None):
+        return super(Ambari, self).Put(url,
+                                       auth=self.auth,
+                                       headers=self.headers,
+                                       data=data)
 
-    def Delete(self, url, **kwargs):
-        return super(Ambari, self).Delete(url, headers=self.headers, **kwargs)
+    def Post(self, url, data=None):
+        return super(Ambari, self).Post(url,
+                                        auth=self.auth,
+                                        headers=self.headers,
+                                        data=data)
+
+    def Delete(self, url):
+        return super(Ambari, self).Delete(url,
+                                          auth=self.auth,
+                                          headers=self.headers)
 
 # command handlers
     def do_list(self, data):
@@ -113,6 +144,7 @@ class Ambari(HadoopUtil):
         if len(params) == 0:
             params = [None]
         func = {None: self.show_cluster,
+                "alerts": self.list_alerts,
                 "hosts": self.list_hosts,
                 "host_components": self.list_host_components,
                 "services": self.list_services,
@@ -133,9 +165,18 @@ class Ambari(HadoopUtil):
 
         func = {"service": self.add_service,
                 "component": self.add_component,
+                "host_component": self.add_host_component,
         }.get(params[0], None)
         if func:
             self.do_echo(func(*params[1:]))
+
+    def do_install(self, data):
+        params = data.split()
+
+        func = {"service": self.service_action,
+        }.get(params[0], None)
+        if func:
+            self.do_echo(func("install", *params[1:]))
 
     def do_start(self, data):
         params = data.split()
@@ -172,6 +213,18 @@ class Ambari(HadoopUtil):
 
         return self.Get(url)
 
+    def list_alerts(self, cluster):
+        """ get all alerts for a cluster """
+        url = self.weburl + url_for["alert"](cluster)
+        result = self.Get(url)
+
+        lines = []
+        for item in result["items"]:
+            alert = item["AlertDefinition"]
+            lines.append((alert["id"], alert["name"], alert["label"]))
+
+        return [("ALERTID", "NAME", "LABEL"), lines]
+
     def list_hosts(self, cluster=None):
         """ get all hosts for a cluster """
 
@@ -182,15 +235,12 @@ class Ambari(HadoopUtil):
 
         result = self.Get(url)
 
-        format = "%-20s %-30s"
-        lines = [format % ("CLUSTER","HOST"),
-                 format % ("--------------------",
-                           "------------------------------")]
+        lines = []
         for item in result["items"]:
             host = item["Hosts"]
-            lines.append(format % (host["cluster_name"], host["host_name"]))
+            lines.append((host["cluster_name"], host["host_name"]))
 
-        return "\n".join(lines)
+        return [("CLUSTER", "HOST"), lines]
 
     def list_host_components(self, cluster, hostname=None):
         """ get all components for a specific host in a specific cluster"""
@@ -237,7 +287,7 @@ class Ambari(HadoopUtil):
 
     def service_action(self, action, cluster=None, service=None):
         """ start/stop a service"""
-        if not action in ('start', 'stop'):
+        if not action in ("install", "start", "stop"):
             self.error("Invalid action")
             return ""
 
@@ -249,9 +299,12 @@ class Ambari(HadoopUtil):
             self.error("Service missing")
             return ""
 
-        state = {"start": "STARTED", "stop": "INSTALLED"}[action]
-        op = {"start": "Start", "stop": "Stop"}[action]
-        service = service
+        state = {"install": "INSTALLED",
+                 "start": "STARTED",
+                 "stop": "INSTALLED"}[action]
+        op = {"install": "Install",
+              "start": "Start",
+              "stop": "Stop"}[action]
 
         url = self.weburl + url_for["service"](cluster, service)
         data = json.dumps({
@@ -276,6 +329,12 @@ class Ambari(HadoopUtil):
     def add_component(self, cluster, service, component):
         """ add a component """
         url = self.weburl + url_for["component"](cluster, service, component)
+
+        return self.Post(url)
+
+    def add_host_component(self, cluster, host, component):
+        """ add a component to a host """
+        url = self.weburl + url_for["host_component"](cluster, host, component)
 
         return self.Post(url)
 
