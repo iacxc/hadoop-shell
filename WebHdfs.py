@@ -1,4 +1,5 @@
 
+from __future__ import print_function
 
 #exports
 __all__ = ('WebHdfs',)
@@ -17,7 +18,6 @@ def get_opstr(op):
             "append": "APPEND",
             "chmod" : "SETPERMISSION",
             "chown" : "SETOWNER",
-            "delete": "DELETE",
             "rename": "RENAME"}[op]
 
 
@@ -49,7 +49,6 @@ class WebHdfs(HadoopUtil):
         HadoopUtil.__init__(self, "http", host, 50070, user)
         self.__cwd = self.home
 
-
     @property
     def banner(self):
         return "HDFS Shell"
@@ -66,48 +65,40 @@ class WebHdfs(HadoopUtil):
     def cwd(self):
         return self.__cwd
 
-    @staticmethod
-    def Get(url, op, user=None, auth=None, params=None, curl=False, 
-                 text=False):
+    def Get(self, url, op, params=None, text=False):
         if params is None: params = {}
         params["op"] = get_opstr(op)
 
-        return Request("GET", url, user, auth, params, curl=curl, text=text)
+        return super(WebHdfs, self).Get(url, user=self.user,
+                                        params=params, text=text)
 
-
-    @staticmethod
-    def Delete(url, user=None, auth=None, curl=False):
+    def Delete(self, url):
         params = {"op" : "DELETE"}
-        return Request("DELETE", url, user, auth, params=params, curl=curl)
+        return super(WebHdfs, self).Delete(url, user=self.user, params=params)
 
-
-    @staticmethod
-    def Put(url, op, user=None, auth=None, params=None, data=None, 
-                 curl=False, text=False, expected=(STATUS_OK,)):
+    def Put(self, url, op, params=None, data=None,
+                 text=False, expected=(STATUS_OK,)):
 
         if params is None: params = {}
         params["op"] = get_opstr(op)
 
-        return Request("PUT", url, user, auth, params, data, 
-                              curl=curl, text=text, expected = expected)
+        return super(WebHdfs, self).Put(url, user=self.user,
+                                        params=params, data=data,
+                                        text=text, expected = expected)
 
-
-    @staticmethod
-    def Post(url, op, user=None, auth=None, params=None, data=None, 
-                  curl=False):
+    def Post(self, url, op, params=None, data=None, text=False):
         if params is None: params = {}
         params["op"] = get_opstr(op)
-        return Request("POST", url, user, auth, params, data, curl=curl)
-
+        return super(WebHdfs, self).Post(url, user=self.user,
+                                         params=params, data=data,
+                                         text=text)
 
 #-- operations
     def do_lls(self, data):
         os.system("ls %s" % data)
 
-
     def do_pwd(self, data):
         self.do_echo(self.cwd)
-
 
     def do_cd(self, data):
         if data:
@@ -120,7 +111,6 @@ class WebHdfs(HadoopUtil):
         else:
             self.__cwd = self.home
 
-
     def do_ls(self, filename, filter_=lambda _:True):
         if len(filename) == 0:
             filename = self.cwd
@@ -128,7 +118,7 @@ class WebHdfs(HadoopUtil):
         if filename[0] != "/":
             filename = "%s/%s" % (self.cwd, filename)
 
-        r = self.Get(self.weburl + filename, "ls", self.user, curl=self.curl)
+        r = self.Get(self.weburl + filename, "ls")
 
         if r is not None:
             if r.get("FileStatuses"):
@@ -138,10 +128,8 @@ class WebHdfs(HadoopUtil):
             else:
                 self.do_echo("File not found")
 
-
     def do_dir(self, filename):
         self.do_ls(filename, lambda f: f[0] == "d")
-
 
     def do_mkdir(self, data):
         params = data.split()
@@ -154,10 +142,8 @@ class WebHdfs(HadoopUtil):
             dirname = "%s/%s" % (self.cwd, dirname)
 
         perm = params[1] if len(params) > 1 else "777"
-        self.do_echo(self.Put(self.weburl + dirname, "mkdir", self.user, 
-                        params={"permission" : perm},
-                        curl=self.curl))
-
+        self.do_echo(self.Put(self.weburl + dirname, "mkdir",
+                        params={"permission" : perm}))
 
     def do_cp(self, data):
         params = data.split()
@@ -169,18 +155,13 @@ class WebHdfs(HadoopUtil):
         if remotefile[0] != "/":
             remotefile = "%s/%s" % (self.cwd, remotefile)
         with file(localfile) as f:
-            result = self.Put(self.weburl + remotefile, "cp", self.user, 
-                              params={"overwrite" : "true"}, 
-                              data=f.read(),
-                              curl=self.curl,
-                              text=True,
-                              expected=(STATUS_CREATED,))
+            r = self.Put(self.weburl + remotefile, "cp",
+                         params={"overwrite" : "true"},
+                         data=f.read(),
+                         text=True,
+                         expected=(STATUS_CREATED,))
 
-            if result is not None:
-                self.do_echo({"status" : "OK"})
-            else:
-                self.do_echo("Failed")
-
+            self.do_echo({"status": "OK"} if r is not None else "Failed")
 
     def do_append(self, data):
         params = data.split()
@@ -192,33 +173,27 @@ class WebHdfs(HadoopUtil):
         if remotefile[0] != "/":
             remotefile = "%s/%s" % (self.cwd, remotefile)
         with file(localfile) as f:
-            result = self.Post(self.weburl + remotefile, "append", self.user,
-                               data=f.read(),
-                               curl=self.curl)
+            r = self.Post(self.weburl + remotefile, "append",
+                          data=f.read(), text=True)
 
-            self.do_echo({"status" : "OK"} if r is not None else "Failed")
+            self.do_echo({"status": "OK"} if r is not None else "Failed")
 
-
-    def do_delete(self, filename) : 
+    def do_rm(self, filename):
         if filename:
             if filename[0] != "/":
                 filename = "/user/%s/%s" % (self.user, filename)
 
-            self.do_echo(self.Delete(self.weburl + filename, 
-                                     self.user, curl=self.curl))
+            self.do_echo(self.Delete(self.weburl + filename))
         else:
             self.do_echo("Missing filename")
-
 
     def do_cat(self, filename):
         if filename:
             if filename[0] != "/":
                 filename = "%s/%s" % (self.cwd, filename)
-            self.do_echo(self.Get(self.weburl + filename, "cat", self.user,
-                        curl=self.curl, text=True))
+            self.do_echo(self.Get(self.weburl + filename, "cat", text=True))
         else:
             self.do_echo("Missing filename")
-
 
     def do_rename(self, data):
         params = data.split()
@@ -231,10 +206,8 @@ class WebHdfs(HadoopUtil):
             srcname = "/user/%s/%s" % (self.user, srcname)
         if destname[0] != "/":
             destname = "/user/%s/%s" % (self.user, destname)
-        self.do_echo(self.Put(self.weburl + srcname, "rename", self.user,
-                        params={"destination" : destname}, 
-                        curl=self.curl))
-
+        self.do_echo(self.Put(self.weburl + srcname, "rename",
+                        params={"destination" : destname}))
 
     def do_chmod(self, data):
         params = data.split()
@@ -245,12 +218,10 @@ class WebHdfs(HadoopUtil):
         perm, filename = params
         if filename[0] != "/":
             filename = "%s/%s" % (self.cwd, filename)
-        r = self.Put(self.weburl + filename, "chmod", self.user,
-                     params={"permission" : perm}, text=True,
-                     curl=self.curl)
+        r = self.Put(self.weburl + filename, "chmod",
+                     params={"permission" : perm}, text=True)
 
         self.do_echo({"status" : "OK"} if r is not None else "Failed")
-
 
     def do_chown(self, data):
         params = data.split()
@@ -265,10 +236,8 @@ class WebHdfs(HadoopUtil):
         if owner.count(":") == 1:
             owner, group = owner.split(":")
 
-        r = self.Put(self.weburl + filename, "chown", self.user,
-                     params={"owner" : owner, "group" : group},
-                     text=True,
-                     curl=self.curl)
+        r = self.Put(self.weburl + filename, "chown",
+                     params={"owner" : owner, "group" : group}, text=True)
 
         self.do_echo({"status" : "OK"} if r is not None else "Failed")
 
@@ -276,5 +245,5 @@ class WebHdfs(HadoopUtil):
 #
 # ---- main ----
 if __name__ == "__main__":
-    print "WebHdfs"
+    print("WebHdfs")
 
