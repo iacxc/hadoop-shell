@@ -1,12 +1,13 @@
 
+from __future__ import print_function
 
 #exports
 __all__ = ('Ranger',)
 
 import json
 from Common import get_input
-from HadoopUtil import HadoopUtil, Request, CmdTuple, \
-                       STATUS_NOCONTENT 
+from HadoopUtil import HadoopUtil, CmdTuple, STATUS_NOCONTENT
+
 
 class Ranger(HadoopUtil):
     rootpath = "/service/public/api"
@@ -14,8 +15,8 @@ class Ranger(HadoopUtil):
         "",
         CmdTuple("list repository",                 "List all repositories"),
         CmdTuple("list policy",                     "List all policies"),
-        CmdTuple("list repository    <id>",         "Show a repository"),
-        CmdTuple("list policy        <id>",         "Show a policy"),
+        CmdTuple("list repository   <id>",          "Show a repository"),
+        CmdTuple("list policy       <id>",          "Show a policy"),
         CmdTuple("create repository <data>",        "Create a repository"),
         CmdTuple("create policy     <data>",        "Create a policy"),
         CmdTuple("update repository <id> <data>",   "Update a repository"),
@@ -26,7 +27,6 @@ class Ranger(HadoopUtil):
 
     def __init__(self, host, user, passwd):
         HadoopUtil.__init__(self, "http", host, 6080, user, passwd)
-
 
     @property
     def banner(self):
@@ -44,36 +44,25 @@ class Ranger(HadoopUtil):
     def policyurl(self):
         return self.weburl + "/policy"
 
+    def Get(self, url):
+        return super(Ranger, self).Get(url, auth=self.auth)
 
- 
-    @staticmethod
-    def Get(url, auth, params=None, curl=False):
-        return Request("GET", url, auth=auth, params=params, curl=curl)
+    def Delete(self, url):
+        return super(Ranger, self).Delete(url, text=True, expected=(STATUS_NOCONTENT,))
 
-    @staticmethod
-    def Delete(url, auth, curl=False):
-        return Request("DELETE", url, auth=auth, text=True,
-                       curl=curl, expected=(STATUS_NOCONTENT,))
+    def Post(self, url, data):
+        return super(Ranger, self).Post(url, data=data,
+                       headers={"Content-Type": "Application/json"})
 
-    @staticmethod
-    def Post(url, auth, data, curl=False):
-        return Request("POST", url, auth=auth, 
-                       data=data, 
-                       headers={"Content-Type" : "Application/json"},
-                       curl=curl)
-
-    @staticmethod
-    def Put(url, auth, data, curl=False):
-        return Request("PUT", url, auth=auth, 
-                       data=data, 
-                       headers={"Content-Type" : "Application/json"},
-                       curl=curl)
+    def Put(self, url, auth, data, curl=False):
+        return super(Ranger, self).Put(url, data=data,
+                       headers={"Content-Type": "Application/json"})
 
     @staticmethod
     def get_permission_map(*perms):
         to_list = lambda s: s.replace(",", " ").split()
 
-        print "Please input a permission map:"
+        print("Please input a permission map:")
 
         permlist = "/".join(perms)
         perm_map ={"userList" : get_input("User(s)",
@@ -92,7 +81,6 @@ class Ranger(HadoopUtil):
 
         return perm_map
 
-
 # command handers
     def do_list(self, data):
         params = data.split() + [None]
@@ -102,7 +90,6 @@ class Ranger(HadoopUtil):
             self.do_echo(self.get_policy(params[1]))
         else:
             self.error("Invalid parameter '%s'" % data)
-
 
     def do_create(self, data):
         params = data.split() + [None]
@@ -117,7 +104,6 @@ class Ranger(HadoopUtil):
             handler()
         except AttributeError:
             self.error("Invalid parameter '%s'%" % params[1])
-
 
     def do_update(self, data):
         params = data.split() + [None]
@@ -138,7 +124,6 @@ class Ranger(HadoopUtil):
                       }.get(params[0])
             update(olddata)
 
-
     def do_delete(self, data):
         params = data.split() + [None]
 
@@ -149,42 +134,37 @@ class Ranger(HadoopUtil):
         else:
             self.error("Invalid parameter '%s'" % params[0])
 
-
 # utilities
     def get_repository(self, service_id=None):
         url = self.repourl if service_id is None \
                            else "%s/%s" % (self.repourl, service_id)
 
-        return Ranger.Get(url, auth=self.auth, curl=self.curl)
+        return self.Get(url)
 
-
-    def get_policy(self, policy_id=None, params=None):
+    def get_policy(self, policy_id=None):
         url = self.policyurl if policy_id in (None, "None") \
                              else "%s/%s" % (self.policyurl, policy_id)
 
-        return Ranger.Get(url, auth=self.auth, params=params, curl=self.curl)
+        return self.Get(url)
 
 
     def delete_repository(self, repo_id):
-        return Ranger.Delete("%s/%s" % (self.repourl, repo_id),
-                             auth=self.auth, curl=self.curl)
-
+        return self.Delete("%s/%s" % (self.repourl, repo_id))
 
     def delete_policy(self, policy_id):
-        return Ranger.Delete("%s/%s" % (self.policyurl, policy_id),
-                          auth=self.auth, curl=self.curl)
+        return self.Delete("%s/%s" % (self.policyurl, policy_id))
 
 
     def update_repository(self, repo_data):
-        print repo_data
+        print(repo_data)
 
 
     def update_policy(self, policy_data):
-        print policy_data
+        print(policy_data)
 
 
     def create_hbase_policy(self):
-        print "Creating hbase policy, please input"
+        print("Creating hbase policy, please input")
 
         def trueOrfalse(input_str):
             if input_str.lower() in ("yes", "y"):
@@ -233,27 +213,20 @@ class Ranger(HadoopUtil):
             self.do_echo( self.__create_policy(policy_data))
 
         except KeyboardInterrupt:
-            print "Control-C"
+            print("Control-C")
 
         except Exception as e:
-            print e
+            print(e)
 
 
     def __create_policy(self, policy_data):
-        return Ranger.Post(self.policyurl,
-                           auth=self.auth,
-                           data=json.dumps(policy_data),
-                           curl=self.curl)
+        return self.Post(self.policyurl, data=json.dumps(policy_data))
 
     def __update_policy(self, policy_id, policy_data):
-        return Ranger.Put("%s/%s" % (self.policyurl, policy_id),
-                           auth=self.auth,
-                           data=json.dumps(policy_data),
-                           curl=self.curl)
-
-
+        return self.Put("%s/%s" % (self.policyurl, policy_id),
+                          data=json.dumps(policy_data))
 
 #
 # ---- main ----
 if __name__ == "__main__":
-    print "Ranger"
+    print("Ranger")
