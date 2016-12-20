@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from WebHdfs import WebHdfs
+from Hdfs import Hdfs
 
 if __name__ == "__main__":
     from optparse import OptionParser
@@ -20,6 +20,6 @@ if __name__ == "__main__":
         else:
             opts.host = 'localhost'
 
-    hdfs = WebHdfs(opts.host, opts.user)
+    hdfs = Hdfs(opts.host, opts.user)
 
     hdfs.cmdloop()

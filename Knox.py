@@ -6,7 +6,7 @@ __all__ = ("Knox",)
 
 from HadoopUtil import HadoopUtil, Request, CmdTuple, \
                        gen_fileinfo
-from WebHdfs import WebHdfs
+from Hdfs import Hdfs
 from WebHCat import WebHCat
 #from ResourceManager import ResourceManager
 
@@ -38,7 +38,7 @@ class Knox(HadoopUtil):
 
     @property
     def hdfsurl(self):
-        return  self.weburl + WebHdfs.rootpath
+        return  self.weburl + Hdfs.rootpath
 
     @property
     def hcaturl(self):
@@ -76,7 +76,7 @@ class Knox(HadoopUtil):
             self.do_echo("Missing file/dir name")
             return
 
-        r = WebHdfs.Get(self.hdfsurl + dirname, "ls",
+        r = Hdfs.Get(self.hdfsurl + dirname, "ls",
                         auth=self.auth, curl=self.curl)
         if r is not None:
             if r.get("FileStatuses"):               
@@ -88,7 +88,7 @@ class Knox(HadoopUtil):
 
     def do_cat(self, filename):
         if filename:
-            self.do_echo(WebHdfs.Get(self.hdfsurl + filename, "cat", 
+            self.do_echo(Hdfs.Get(self.hdfsurl + filename, "cat",
                                      auth=self.auth, curl=self.curl, text=True))
 
 

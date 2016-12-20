@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 #exports
-__all__ = ('WebHdfs',)
+__all__ = ('Hdfs',)
 
 
 from HadoopUtil import HadoopUtil, Request, CmdTuple, \
@@ -21,7 +21,7 @@ def get_opstr(op):
             "rename": "RENAME"}[op]
 
 
-class WebHdfs(HadoopUtil):
+class Hdfs(HadoopUtil):
     rootpath = "/webhdfs/v1"
     commands = HadoopUtil.commands + [
         "",
@@ -69,12 +69,12 @@ class WebHdfs(HadoopUtil):
         if params is None: params = {}
         params["op"] = get_opstr(op)
 
-        return super(WebHdfs, self).Get(url, user=self.user,
+        return super(Hdfs, self).Get(url, user=self.user,
                                         params=params, text=text)
 
     def Delete(self, url):
         params = {"op" : "DELETE"}
-        return super(WebHdfs, self).Delete(url, user=self.user, params=params)
+        return super(Hdfs, self).Delete(url, user=self.user, params=params)
 
     def Put(self, url, op, params=None, data=None,
                  text=False, expected=(STATUS_OK,)):
@@ -82,14 +82,14 @@ class WebHdfs(HadoopUtil):
         if params is None: params = {}
         params["op"] = get_opstr(op)
 
-        return super(WebHdfs, self).Put(url, user=self.user,
+        return super(Hdfs, self).Put(url, user=self.user,
                                         params=params, data=data,
                                         text=text, expected = expected)
 
     def Post(self, url, op, params=None, data=None, text=False):
         if params is None: params = {}
         params["op"] = get_opstr(op)
-        return super(WebHdfs, self).Post(url, user=self.user,
+        return super(Hdfs, self).Post(url, user=self.user,
                                          params=params, data=data,
                                          text=text)
 
@@ -107,7 +107,10 @@ class WebHdfs(HadoopUtil):
             elif data[0] == "/":
                 self.__cwd = data
             else:
-                self.__cwd = "%s/%s" % (self.cwd, data)
+                if self.cwd == "/":
+                    self.__cwd = "/%s" % data
+                else:
+                    self.__cwd = "%s/%s" % (self.cwd, data)
         else:
             self.__cwd = self.home
 
@@ -245,5 +248,5 @@ class WebHdfs(HadoopUtil):
 #
 # ---- main ----
 if __name__ == "__main__":
-    print("WebHdfs")
+    print("Hdfs")
 
