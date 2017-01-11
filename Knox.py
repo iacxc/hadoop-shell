@@ -6,7 +6,7 @@ __all__ = ("Knox",)
 
 from HadoopUtil import HadoopUtil, Request, CmdTuple, \
                        gen_fileinfo
-from Hdfs import Hdfs
+from WebHdfs import Hdfs
 from WebHCat import WebHCat
 #from ResourceManager import ResourceManager
 

@@ -83,3 +83,28 @@ if __name__ == "__main__":
     shell = HdfsShell(HdfsServer("g4t8720.houston.hp.com", "caiche"))
     shell.cmdloop()
 
+#!/usr/bin/python
+
+from WebHdfs import WebHdfs
+
+if __name__ == "__main__":
+    from optparse import OptionParser
+
+    parser = OptionParser()
+    parser.add_option("--host")
+    parser.add_option("-u", "--user", default="caiche")
+
+    opts, args = parser.parse_args()
+
+    if __debug__:
+        print opts, args
+
+    if opts.host is None:
+        if len(args) > 0:
+            opts.host = args[0]
+        else:
+            opts.host = 'localhost'
+
+    hdfs = WebHdfs(opts.host, opts.user)
+
+    hdfs.cmdloop()
