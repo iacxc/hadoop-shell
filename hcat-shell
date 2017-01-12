@@ -1,0 +1,61 @@
+#!/usr/bin/python -O
+from __future__ import print_function
+
+from HadoopShell import HadoopCmd, Seperator, HadoopShell
+from HCatServer import HCatServer
+
+#exports
+__all__ = ("WebHCat",)
+
+from HadoopUtil import HadoopUtil, Request, CmdTuple
+
+class HCatShell(HadoopShell):
+    commands = HadoopShell.commands + [
+        HadoopCmd("status", "Get status"),
+        HadoopCmd("version",    "Show the version", "[component]"),
+        HadoopCmd("use", "View/Change the current db", "[dbname]"),
+        HadoopCmd("runddl", "Run ddl command", "<ddl>"),
+        HadoopCmd("show databases", "List all databases"),
+        HadoopCmd("show tables", "List all tables"),
+        HadoopCmd("desc database", "Show details of current database", 
+                  "<database>"),
+        HadoopCmd("desc table", "Show details of a table", "<table>"),
+        Seperator(),
+    ]
+
+    def __init__(self):
+        super(HCatShell, self).__init__()
+
+    @property
+    def banner(self):
+        return "HCatalog Shell"
+
+    def do_status(self, data):
+        self.do_echo(self.server.do_status(data))
+
+    def do_version(self, data):
+        self.do_echo(self.server.do_version(data))
+
+    def do_use(self, data):
+        self.do_echo(self.server.do_use(data))
+
+    def do_runddl(self, data):
+        self.do_echo(self.server.do_runddl(data))
+
+    def do_show(self, data):
+        self.do_echo(self.server.do_show(data))
+
+    def do_desc(self, data):
+        self.do_echo(self.server.do_desc(data))
+
+    def get_parser(self):
+        parser = super(HCatShell, self).get_parser()
+        parser.set_defaults(port=50111)
+
+        return parser
+
+#
+# ---- main ----
+if __name__ == "__main__":
+    shell = HCatShell()
+    shell.start(HCatServer)

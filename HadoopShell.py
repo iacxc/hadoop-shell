@@ -122,7 +122,8 @@ class HadoopShell(Cmd, object):
         elif type(data).__name__ in ('list', 'tuple'):
             print_list(*data)
         else:
-            print(data)
+            if data is not None:
+                print(data)
 
     def do_help(self, data):
         if data:
@@ -222,8 +223,7 @@ class HadoopShell(Cmd, object):
         parser = OptionParser()
         parser.add_option("--prefix", default="http",
                           help="Prefix, [default: %default]")
-        parser.add_option("--host", default="localhost",
-                          help="Host, [default: %default]")
+        parser.add_option("--host", help="Host, [default: %default]")
         parser.add_option("--port", type=int, default=8080,
                           help="Port, [default: %default]")
         parser.add_option("-u", "--user", default=os.getenv("USER"),

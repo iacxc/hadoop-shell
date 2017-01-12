@@ -25,6 +25,7 @@ class HdfsShell(HadoopShell):
                   ["chown <user[:group]>" , "file"]),
         HadoopCmd("rm", "Remove a file", "<file>"),
         HadoopCmd("rename", "Rename a file", ["<oldfile", "<newfile>"]),
+        Seperator(),
     ]
 
     def __init__(self):
