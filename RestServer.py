@@ -97,19 +97,14 @@ def Request(method,
 class RestServer(object):
     """ base class for all rest client """
 
-    def __init__(self,
-                 prefix="http",
-                 host="localhost",
-                 port=8080,
-                 user=None,
-                 passwd=None):
-        self.prefix = prefix
-        self.host = host
-        self.port = port
-        self.user = user
-        self.passwd = passwd
+    def __init__(self, opts):
+        self.prefix = getattr(opts, "prefix", "http")
+        self.host = getattr(opts, "host", "localhost")
+        self.port = getattr(opts, "port", 8080)
+        self.user = getattr(opts, "user", None)
+        self.passwd = getattr(opts, "passwd", None)
 
-        self.proxies = {'http': None, 'https': None}
+        self.proxies = {"http": None, "https": None}
         self.curl = False
 
     @property

@@ -95,12 +95,11 @@ class HadoopShell(Cmd, object):
         Seperator(),
     ]
 
-    def __init__(self, server, debug=True):
+    def __init__(self, debug=True):
         super(HadoopShell, self).__init__()
 
-        self.server = server
+        self.server = None
         self.__debug = debug
-        self.set_prompt()
 
     @property
     def banner(self):
@@ -209,6 +208,8 @@ class HadoopShell(Cmd, object):
         self.do_echo("Exit...")
 
     def cmdloop(self):
+        assert self.server is not None
+
         self.do_echo("Welcome to the %s" % self.banner)
         while True:
             try:
@@ -220,8 +221,34 @@ class HadoopShell(Cmd, object):
             except Exception as e:
                 self.do_echo(e)
 
-#
+    def get_parser(self):
+        from optparse import OptionParser
+
+        parser = OptionParser()
+        parser.add_option("--host")
+        parser.add_option("-u", "--user", default="caiche")
+
+        return parser
+
+    def start(self, Server):
+        parser = self.get_parser()
+        opts, args = parser.parse_args()
+
+        if __debug__:
+            print(opts, args)
+
+        if opts.host is None:
+            if len(args) > 0:
+                opts.host = args[0]
+            else:
+                opts.host = 'localhost'
+
+        self.server = Server(opts)
+        self.set_prompt()
+        self.cmdloop()
+
+
 # ---- main ----
 if __name__ == "__main__":
-    shell = HadoopShell(RestServer())
-    shell.cmdloop()
+    shell = HadoopShell()
+    shell.start(RestServer)

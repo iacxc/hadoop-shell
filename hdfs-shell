@@ -27,8 +27,8 @@ class HdfsShell(HadoopShell):
         HadoopCmd("rename", "Rename a file", ["<oldfile", "<newfile>"]),
     ]
 
-    def __init__(self, server):
-        super(HdfsShell, self).__init__(server)
+    def __init__(self):
+        super(HdfsShell, self).__init__()
 
     @property
     def banner(self):
@@ -76,22 +76,6 @@ class HdfsShell(HadoopShell):
 
 
 if __name__ == "__main__":
-    from optparse import OptionParser
+    shell = HdfsShell()
+    shell.start(HdfsServer)
 
-    parser = OptionParser()
-    parser.add_option("--host")
-    parser.add_option("-u", "--user", default="caiche")
-
-    opts, args = parser.parse_args()
-
-    if __debug__:
-        print(opts, args)
-
-    if opts.host is None:
-        if len(args) > 0:
-            opts.host = args[0]
-        else:
-            opts.host = 'localhost'
-
-    shell = HdfsShell(HdfsServer(opts.host, opts.user))
-    shell.cmdloop()

@@ -26,8 +26,10 @@ def get_opstr(op):
 class HdfsServer(RestServer):
     rootpath = "/webhdfs/v1"
 
-    def __init__(self, host="localhost", user=None):
-        super(HdfsServer, self).__init__("http", host, 50070, user)
+    def __init__(self, opts):
+        opts.prefix = "http"
+        opts.port = 50070
+        super(HdfsServer, self).__init__(opts)
 
         self.__cwd = self.home
 
