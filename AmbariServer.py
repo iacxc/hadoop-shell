@@ -3,13 +3,10 @@ from __future__ import print_function
 
 
 #exports
-__all__ = ("Ambari",)
+__all__ = ("AmbariServer", )
 
 
-import json
-from urllib import quote
-
-from HadoopUtil import HadoopUtil, CmdTuple
+from RestServer import RestServer
 
 
 def get_cluster_url(cluster=None):
@@ -64,50 +61,13 @@ url_for = {
 }
 
 
-class Ambari(HadoopUtil):
+class AmbariServer(RestServer):
     rootpath = "/api/v1"
-    commands = HadoopUtil.commands + [
-        "",
-        CmdTuple("list",
-                 "List all clusters"),
-        CmdTuple("list hosts [cluster]",
-                 "List hosts"),
-        CmdTuple("list host_components <cluster> [host]",
-                 "List hosts together with components"),
-        CmdTuple("list services <cluster> [service]",
-                 "List services together with components"),
-        CmdTuple("list alerts <cluster>",
-                 "List all alerts"),
-        "",
-        CmdTuple("show <cluster>",
-                 "Show a cluster"),
-        CmdTuple("show component <cluster> <service> <component>",
-                 "Show a component"),
-        "",
-        CmdTuple("add service <cluster> <service>",
-                 "Add a service"),
-        CmdTuple("add component <cluster> <service> <component>",
-                 "Add a component"),
-        CmdTuple("add host_component <cluster> <host> <component>",
-                 "Add a component on a host"),
 
-        CmdTuple("install service <cluster> <service>",
-                 "Install a service"),
+    def __init__(self, opts):
+        opts.prefix = "http"
+        super(AmbariServer, self).__init__(opts)
 
-        CmdTuple("start service <cluster> <service>",
-                 "Start a service"),
-        CmdTuple("stop service <cluster> <service>",
-                 "Stop a service"),
-        CmdTuple("delete service <cluster> <service>",
-                 "Delete a service"),
-        CmdTuple("start component <cluster> <host> <component>",
-                 "Start a component"),
-        CmdTuple("stop component <cluster> <host> <component>",
-                 "Stop a component"),
-    ]
-
-    def __init__(self, host, user, passwd, debug=True):
-        super(Ambari, self).__init__("http", host, 8080, user, passwd, debug)
         self.headers = {'X-Requested-By': 'ambari'}
 
     @property
@@ -119,22 +79,22 @@ class Ambari(HadoopUtil):
         return self.baseurl + self.rootpath
 
     def Get(self, url):
-        return super(Ambari, self).Get(url, auth=self.auth)
+        return super(AmbariServer, self).Get(url, auth=self.auth)
 
     def Put(self, url, data=None):
-        return super(Ambari, self).Put(url,
+        return super(AmbariServer, self).Put(url,
                                        auth=self.auth,
                                        headers=self.headers,
                                        data=data)
 
     def Post(self, url, data=None):
-        return super(Ambari, self).Post(url,
+        return super(AmbariServer, self).Post(url,
                                         auth=self.auth,
                                         headers=self.headers,
                                         data=data)
 
     def Delete(self, url):
-        return super(Ambari, self).Delete(url,
+        return super(AmbariServer, self).Delete(url,
                                           auth=self.auth,
                                           headers=self.headers)
 
@@ -151,14 +111,14 @@ class Ambari(HadoopUtil):
         }.get(params[0], None)
 
         if func:
-            self.do_echo(func(*params[1:]))
+            return func(*params[1:])
 
     def do_show(self, data):
         params = data.split()
         if params[0] == "component":
-            self.do_echo(self.show_component(*params[1:]))
+            return self.show_component(*params[1:])
         else:
-            self.do_echo(self.show_cluster(*params[1:]))
+            return self.show_cluster(*params[1:])
 
     def do_add(self, data):
         params = data.split()
@@ -168,7 +128,7 @@ class Ambari(HadoopUtil):
                 "host_component": self.add_host_component,
         }.get(params[0], None)
         if func:
-            self.do_echo(func(*params[1:]))
+            return func(*params[1:])
 
     def do_install(self, data):
         params = data.split()
@@ -176,7 +136,7 @@ class Ambari(HadoopUtil):
         func = {"service": self.service_action,
         }.get(params[0], None)
         if func:
-            self.do_echo(func("install", *params[1:]))
+            return func("install", *params[1:])
 
     def do_start(self, data):
         params = data.split()
@@ -185,7 +145,7 @@ class Ambari(HadoopUtil):
                 "component": self.component_action,
         }.get(params[0], None)
         if func:
-            self.do_echo(func("start", *params[1:]))
+            return func("start", *params[1:])
 
     def do_stop(self, data):
         params = data.split()
@@ -194,13 +154,13 @@ class Ambari(HadoopUtil):
                 "component": self.component_action,
                 }.get(params[0], None)
         if func:
-            self.do_echo(func("stop", *params[1:]))
+            return func("stop", *params[1:])
 
     def do_delete(self, data):
         params = data.split()
 
         if params[0] == "service":
-            self.do_echo(self.delete_service(*params[1:]))
+            return self.delete_service(*params[1:])
 
 # utilities
     def show_cluster(self, cluster=None):

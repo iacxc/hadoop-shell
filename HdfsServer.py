@@ -27,8 +27,6 @@ class HdfsServer(RestServer):
     rootpath = "/webhdfs/v1"
 
     def __init__(self, opts):
-        opts.prefix = "http"
-        opts.port = 50070
         super(HdfsServer, self).__init__(opts)
 
         self.__cwd = self.home
@@ -40,7 +38,7 @@ class HdfsServer(RestServer):
     @property
     def home(self):
         r = self.Get(self.weburl, "home")
-        return r["Path"]
+        return r["Path"] if r is not None else "/"
 
     @property
     def cwd(self):

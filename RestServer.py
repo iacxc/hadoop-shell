@@ -10,7 +10,6 @@ __all__ = (
 import json
 import re
 import requests
-import sys
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -61,14 +60,18 @@ def Request(method,
             data="" if data is None else " -d '%s'" % data,
             url=(" -k '%s'" if url.startswith("https") else " '%s'") % url))
 
-    resp = requests.request(
-        method,
-        url,
-        auth=auth,
-        verify=False,
-        data=data,
-        headers=headers,
-        proxies=proxies)
+    try:
+        resp = requests.request(
+            method,
+            url,
+            auth=auth,
+            verify=False,
+            data=data,
+            headers=headers,
+            proxies=proxies)
+    except requests.exceptions.ConnectionError:
+        return None
+
     try:
         if resp.status_code in expected:
             return resp.text if text else resp.json()
@@ -102,7 +105,7 @@ class RestServer(object):
         self.host = getattr(opts, "host", "localhost")
         self.port = getattr(opts, "port", 8080)
         self.user = getattr(opts, "user", None)
-        self.passwd = getattr(opts, "passwd", None)
+        self.passwd = getattr(opts, "password", None)
 
         self.proxies = {"http": None, "https": None}
         self.curl = False

@@ -8,8 +8,8 @@ __all__ = ("HadoopShell",
 
 
 from cmd import Cmd
-from collections import namedtuple, OrderedDict
 import json
+import os
 import sys
 
 from RestServer import RestServer
@@ -191,11 +191,6 @@ class HadoopShell(Cmd, object):
 
     def do_passwd(self, data):
         self.server.do_passwd()
-        import getpass
-        try:
-            self.server.passwd = getpass.getpass()
-        except EOFError:
-            pass
 
     def do_get(self, data):
         self.do_echo(self.server.Get(data))
@@ -225,8 +220,14 @@ class HadoopShell(Cmd, object):
         from optparse import OptionParser
 
         parser = OptionParser()
-        parser.add_option("--host")
-        parser.add_option("-u", "--user", default="caiche")
+        parser.add_option("--prefix", default="http",
+                          help="Prefix, [default: %default]")
+        parser.add_option("--host", default="localhost",
+                          help="Host, [default: %default]")
+        parser.add_option("--port", type=int, default=8080,
+                          help="Port, [default: %default]")
+        parser.add_option("-u", "--user", default=os.getenv("USER"),
+                          help="User, [default: %default]")
 
         return parser
 

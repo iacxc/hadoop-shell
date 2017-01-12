@@ -75,6 +75,12 @@ class HdfsShell(HadoopShell):
         self.do_echo(self.do_chown(data))
 
 
+    def get_parser(self):
+        parser = super(HdfsShell, self).get_parser()
+        parser.set_defaults(port=50070)
+
+        return parser
+
 if __name__ == "__main__":
     shell = HdfsShell()
     shell.start(HdfsServer)
