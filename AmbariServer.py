@@ -5,7 +5,8 @@ from __future__ import print_function
 #exports
 __all__ = ("AmbariServer", )
 
-
+import json
+from urllib import quote
 from RestServer import RestServer
 
 
@@ -134,6 +135,7 @@ class AmbariServer(RestServer):
         params = data.split()
 
         func = {"service": self.service_action,
+                "component": self.component_action,
         }.get(params[0], None)
         if func:
             return func("install", *params[1:])
@@ -306,14 +308,29 @@ class AmbariServer(RestServer):
 
     def component_action(self, action, cluster, hostname, component):
         """ start/stop a service"""
-        if not action in ('start', 'stop'):
+        if not action in ('install', 'start', 'stop'):
             self.error("Invalid action")
             return ""
 
-        state = {"start": "STARTED", "stop": "INSTALLED"}[action]
+        state = {"start": "STARTED", 
+                 "stop": "INSTALLED",
+                 "install": "INSTALLED"}[action]
 
-        url = self.weburl + url_for["host_component"](cluster, hostname, component)
-        data = json.dumps({"HostRoles": {"state": state}})
+        url = self.weburl + \
+                  url_for["host_component"](cluster, hostname, component)
+        if action == "install":
+            data = json.dumps({
+                "RequestInfo": {
+                    "context": "Install %s" % component
+                },
+                "Body": {
+                    "HostRoles": {
+                        "state": state
+                    }
+                }
+            })
+        else:
+            data = json.dumps({"HostRoles": {"state": state}})
 
         return self.Put(url, data=data)
 

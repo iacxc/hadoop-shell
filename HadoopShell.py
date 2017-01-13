@@ -51,7 +51,7 @@ class HadoopCmd(object):
         return self.text == cmdtext
 
     def __repr__(self):
-        return "%-20s%s" % (self.text, self.description)
+        return "%-25s%s" % (self.text, self.description)
 
     def fulltext(self):
         if self.parameters is None:

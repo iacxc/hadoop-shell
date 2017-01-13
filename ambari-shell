@@ -3,63 +3,8 @@
 from __future__ import print_function
 
 
-import json
-from urllib import quote
-
 from AmbariServer import AmbariServer
 from HadoopShell import HadoopCmd, Seperator, HadoopShell
-
-
-def get_cluster_url(cluster=None):
-    if cluster is None:
-        return "/clusters"
-    else:
-        return quote("/clusters/%s" % cluster)
-
-
-def get_host_url(cluster=None):
-    if cluster is None:
-        return "/host"
-    else:
-        return quote("/clusters/%s/hosts" % cluster)
-
-
-def get_service_url(cluster, service=None):
-    if service is None:
-        return quote("/clusters/%s/services" % cluster)
-    else:
-        return quote("/clusters/%s/services/%s" % (cluster, service.upper()))
-
-
-def get_host_component_url(cluster, hostname, component=None):
-    if component is None:
-        return quote("/clusters/%s/hosts/%s/host_components" % (
-            cluster, hostname))
-    else:
-        return quote("/clusters/%s/hosts/%s/host_components/%s" % (
-            cluster, hostname, component.upper()))
-
-
-def get_component_url(cluster, service, component):
-    return quote("/clusters/%s/services/%s/components/%s" % (
-                     cluster, service.upper(), component.upper()))
-
-
-def get_alert_url(cluster, alert_id=None):
-    if alert_id is None:
-        return quote("/clusters/%s/alert_definitions" % cluster)
-    else:
-        return quote("/clusters/%s/alert_definitions/%d" % (cluster, alert_id))
-
-
-url_for = {
-    "cluster": get_cluster_url,
-    "host": get_host_url,
-    "service": get_service_url,
-    "component": get_component_url,
-    "host_component": get_host_component_url,
-    "alert": get_alert_url,
-}
 
 
 class AmbariShell(HadoopShell):
@@ -76,14 +21,16 @@ class AmbariShell(HadoopShell):
         HadoopCmd("show", "Show a cluster", "<cluster>"),
         HadoopCmd("show component", "Show a component",
                   ["<cluster>", "<service>", "<component>"]),
+        Seperator(),
         HadoopCmd("add service", "Add a service", ["<cluster>", "<service>"]),
         HadoopCmd("add component", "Add a component",
                   ["<cluster>", "<service>", "<component>"]),
         HadoopCmd("add host_component", "Add a component on a host",
                   ["<cluster>", "<host>", "<component>"]),
-        Seperator(),
         HadoopCmd("install service", "Install a service",
                   ["<cluster>", "<service"]),
+        HadoopCmd("install component", "Install a component",
+                  ["<cluster>", "<host>", "<component>"]),
         Seperator(),
         HadoopCmd("start service", "Start a service",
                   ["<cluster>", "<service>"]),
@@ -93,7 +40,7 @@ class AmbariShell(HadoopShell):
         HadoopCmd("start component", "Start a component",
                   ["<cluster>", "<service>", "<component>"]),
         HadoopCmd("stop component", "Stop a component",
-                  ["<cluster>", "<service", "<component>"]),
+                  ["<cluster>", "<service>", "<component>"]),
     ]
 
     def __init__(self):
