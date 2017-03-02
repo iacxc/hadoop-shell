@@ -1,0 +1,85 @@
+#!/usr/bin/python -O
+
+from __future__ import print_function
+
+
+from MapRServer import MapRServer
+from HadoopShell import HadoopCmd, Seperator, HadoopShell
+
+
+class MapRShell(HadoopShell):
+    commands = HadoopShell.commands + [
+        HadoopCmd("list hosts", "List hosts"),
+        HadoopCmd("list services", "List services"),
+        HadoopCmd("list jobs", "List jobs"),
+        HadoopCmd("list volumes", "List volumes"),
+        Seperator(),
+        HadoopCmd("show", "Show a cluster", "<cluster>"),
+        HadoopCmd("show component", "Show a component",
+                  ["<cluster>", "<service>", "<component>"]),
+        Seperator(),
+        HadoopCmd("add service", "Add a service", ["<cluster>", "<service>"]),
+        HadoopCmd("add component", "Add a component",
+                  ["<cluster>", "<service>", "<component>"]),
+        HadoopCmd("add host_component", "Add a component on a host",
+                  ["<cluster>", "<host>", "<component>"]),
+        HadoopCmd("install service", "Install a service",
+                  ["<cluster>", "<service"]),
+        HadoopCmd("install component", "Install a component",
+                  ["<cluster>", "<host>", "<component>"]),
+        Seperator(),
+        HadoopCmd("start service", "Start a service",
+                  ["<cluster>", "<service>"]),
+        HadoopCmd("stop service", "Stop a service", ["<cluster>", "<service>"]),
+        HadoopCmd("delete service", "Delete a service",
+                  ["<cluster>", "<service>"]),
+        HadoopCmd("start component", "Start a component",
+                  ["<cluster>", "<service>", "<component>"]),
+        HadoopCmd("stop component", "Stop a component",
+                  ["<cluster>", "<service>", "<component>"]),
+    ]
+
+    def __init__(self):
+        super(MapRShell, self).__init__()
+
+    @property
+    def banner(self):
+        return "Ambari Shell"
+
+
+# command handlers
+    def do_list(self, data):
+        self.do_echo(self.server.do_list(data))
+
+    def do_show(self, data):
+        self.do_echo(self.server.do_show(data))
+
+    def do_add(self, data):
+        self.do_echo(self.server.do_add(data))
+
+    def do_install(self, data):
+        self.do_echo(self.server.do_install(data))
+
+    def do_start(self, data):
+        self.do_echo(self.server.do_start(data))
+
+    def do_stop(self, data):
+        self.do_echo(self.server.do_stop(data))
+
+    def do_delete(self, data):
+        self.do_echo(self.server.do_delete(data))
+
+    def get_parser(self):
+        parser = super(MapRShell, self).get_parser()
+        parser.add_option("--password", default="mapr")
+        parser.set_defaults(prefix="https")
+        parser.set_defaults(port=8443)
+        parser.set_defaults(user="mapr")
+
+        return parser
+
+# ---- main ----
+if __name__ == '__main__':
+    shell = MapRShell()
+    shell.start(MapRServer)
+

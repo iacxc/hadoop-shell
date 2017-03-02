@@ -3,7 +3,7 @@ from __future__ import print_function
 
 
 #exports
-__all__ = ("AmbariServer", )
+__all__ = ("MapRServer", )
 
 import json
 from urllib import quote
@@ -62,35 +62,33 @@ url_for = {
 }
 
 
-class AmbariServer(RestServer):
-    rootpath = "/api/v1"
+class MapRServer(RestServer):
+    rootpath = "/rest"
 
     def __init__(self, opts):
-        super(AmbariServer, self).__init__(opts)
-
-        self.headers = {'X-Requested-By': 'ambari'}
+        super(MapRServer, self).__init__(opts)
 
     @property
     def weburl(self):
         return self.baseurl + self.rootpath
 
     def Get(self, url):
-        return super(AmbariServer, self).Get(url, auth=self.auth)
+        return super(MapRServer, self).Get(url, auth=self.auth)
 
     def Put(self, url, data=None):
-        return super(AmbariServer, self).Put(url,
+        return super(MapRServer, self).Put(url,
                                        auth=self.auth,
                                        headers=self.headers,
                                        data=data)
 
     def Post(self, url, data=None):
-        return super(AmbariServer, self).Post(url,
+        return super(MapRServer, self).Post(url,
                                         auth=self.auth,
                                         headers=self.headers,
                                         data=data)
 
     def Delete(self, url):
-        return super(AmbariServer, self).Delete(url,
+        return super(MapRServer, self).Delete(url,
                                           auth=self.auth,
                                           headers=self.headers)
 
@@ -99,15 +97,14 @@ class AmbariServer(RestServer):
         params = data.split()
         if len(params) == 0:
             params = [None]
-        func = {None: self.show_cluster,
-                "alerts": self.list_alerts,
-                "hosts": self.list_hosts,
-                "host_components": self.list_host_components,
+        func = {"hosts": self.list_hosts,
                 "services": self.list_services,
+#                "jobs": self.list_jobs,
+#                "volumes": self.list_volumes,
         }.get(params[0], None)
 
         if func:
-            return func(*params[1:])
+            return func()
 
     def do_show(self, data):
         params = data.split()
@@ -170,77 +167,30 @@ class AmbariServer(RestServer):
 
         return self.Get(url)
 
-    def list_alerts(self, cluster):
-        """ get all alerts for a cluster """
-        url = self.weburl + url_for["alert"](cluster)
-        result = self.Get(url)
-
-        lines = []
-        for item in result["items"]:
-            alert = item["AlertDefinition"]
-            lines.append((alert["id"], alert["name"], alert["label"]))
-
-        return [("ALERTID", "NAME", "LABEL"), lines]
-
-    def list_hosts(self, cluster=None):
+    def list_hosts(self):
         """ get all hosts for a cluster """
 
-        if cluster is None:
-            url = self.weburl + "/hosts"
-        else:
-            url = self.weburl + url_for["host"](cluster)
+        url = self.weburl + "/node/list"
 
         result = self.Get(url)
 
         lines = []
-        for item in result["items"]:
-            host = item["Hosts"]
-            lines.append((host["cluster_name"], host["host_name"]))
+        for item in result["data"]:
+            lines.append((item["hostname"], item["ip"]))
 
-        return [("CLUSTER", "HOST"), lines]
+        return [("HOST", "IP"), lines]
 
-    def list_host_components(self, cluster, hostname=None):
-        """ get all components for a specific host in a specific cluster"""
-        if hostname is None:
-            host_url = self.weburl + url_for["host"](cluster)
-            hosts = [item["Hosts"]["host_name"]
-                     for item in self.Get(host_url)["items"]]
-        else:
-            hosts = [hostname]
-
-        format = "%-30s %-30s"
-        lines = [format % ("HOST","COMPONENT"),
-                 format % ("------------------------------",
-                           "------------------------------")]
-        for host in hosts:
-            comp_url = self.weburl + url_for["host_component"](cluster, host)
-
-            components = [item["HostRoles"]["component_name"]
-                          for item in self.Get(comp_url)["items"]]
-            lines.append(format % (host, ",".join(components)))
-
-        return '\n'.join(lines)
-
-    def list_services(self, cluster, service=None):
+    def list_services(self):
         """ get all services for a cluster """
-        if service is None:
-            service_url = self.weburl + url_for["service"](cluster)
-            services = [item["ServiceInfo"]["service_name"]
-                        for item in self.Get(service_url)["items"]]
-        else:
-            services = [service]
 
-        format = "%-20s %-30s"
-        lines = [format % ("SERVICE", "COMPONENT"),
-                 format % ("--------------------",
-                           "------------------------------", )]
-        for service in services:
-            url = self.weburl + url_for["service"](cluster, service)
-            components = [item["ServiceComponentInfo"]["component_name"]
-                          for item in self.Get(url)["components"]]
-            lines.append(format % (service, ",".join(components)))
+        url = self.weburl + "/service/list"
+        result = self.Get(url)
 
-        return "\n".join(lines)
+        lines = []
+        for item in result["data"]:
+            lines.append((item["name"], item["displayname"], item["state"]))
+
+        return [("NAME", "DISPLAYNAME", "STATE"), lines]
 
     def service_action(self, action, cluster=None, service=None):
         """ start/stop a service"""
@@ -332,4 +282,4 @@ class AmbariServer(RestServer):
 
 # ---- main ----
 if __name__ == "__main__":
-    print("Ambari")
+    print("MapR")
