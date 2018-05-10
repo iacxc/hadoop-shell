@@ -6,7 +6,13 @@ from __future__ import print_function
 __all__ = ("AmbariServer", )
 
 import json
-from urllib import quote
+import sys
+
+if sys.version_info.major >= 3:
+    from urllib.parse import quote
+else:
+    from urllib import quote
+
 from RestServer import RestServer
 
 

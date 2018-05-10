@@ -1,5 +1,4 @@
-#!/usr/bin/python -O
-from __future__ import print_function
+#!/usr/bin/python3 -O
 
 import os
 from HadoopShell import HadoopCmd, Seperator, HadoopShell
@@ -15,8 +14,10 @@ class HdfsShell(HadoopShell):
         HadoopCmd("cd", "Change the current dir"),
         HadoopCmd("cat", "Type a text file", "<file>"),
         HadoopCmd("mkdir", "Create a directory", "<dir>"),
-        HadoopCmd("cp", "Copy a local file to a remote file",
+        HadoopCmd("put", "Put a local file to a remote file",
                   ["<localfile>", "<remotefile>"]),
+        HadoopCmd("get", "Get a remote file to a local file",
+                  ["<remotefile>", "<localfile>"]),
         HadoopCmd("append", "Append a localfile to a remote file",
                   ["<localfile>", "<remotefile>"]),
         HadoopCmd("chmod", "Change the permission of a file",
@@ -25,6 +26,7 @@ class HdfsShell(HadoopShell):
                   ["chown <user[:group]>" , "file"]),
         HadoopCmd("rm", "Remove a file", "<file>"),
         HadoopCmd("rename", "Rename a file", ["<oldfile", "<newfile>"]),
+        HadoopCmd("cp", "Copy a file to another", ["<oldfile", "<newfile>"]),
         Seperator(),
     ]
 
@@ -54,8 +56,11 @@ class HdfsShell(HadoopShell):
     def do_mkdir(self, data):
         self.do_echo(self.server.do_mkdir(data))
 
-    def do_cp(self, data):
-        self.do_echo(self.server.do_cp(data))
+    def do_put(self, data):
+        self.do_echo(self.server.do_put(data))
+
+    def do_get(self, data):
+        self.do_echo(self.server.do_get(data))
 
     def do_append(self, data):
         self.do_echo(self.server.do_append(data))
@@ -66,6 +71,9 @@ class HdfsShell(HadoopShell):
     def do_cat(self, filename):
         self.do_echo(self.server.do_cat(filename))
 
+    def do_cp(self, data):
+        self.do_echo(self.server.do_cp(data))
+
     def do_rename(self, data):
         self.do_echo(self.server.do_rename(data))
 
@@ -75,10 +83,9 @@ class HdfsShell(HadoopShell):
     def do_chown(self, data):
         self.do_echo(self.do_chown(data))
 
-
     def get_parser(self):
         parser = super(HdfsShell, self).get_parser()
-        parser.set_defaults(port=50070)
+        parser.set_defaults(port=9870)
 
         return parser
 

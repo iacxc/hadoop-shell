@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 #exports
 __all__ = (
@@ -10,6 +9,7 @@ __all__ = (
 import json
 import re
 import requests
+import sys
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -45,11 +45,17 @@ def Request(method,
 
     paramstr = "&".join("%s=%s" % (k, v) for k, v in params.items())
 
-    from urlparse import urlparse
+    if sys.version_info.major >= 3:
+        from urllib.parse import urlparse
+    else:
+        from urlparse import urlparse
+
     uri = urlparse(url)
 
     if len(params) > 0:
         url = url + ("&" if len(uri.query) > 0 else "?") + paramstr
+
+    if __debug__: print(url)
 
     if curl:
         print("curl -X {method}{auth}{header}{data}{url}".format(

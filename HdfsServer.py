@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 #exports
 __all__ = ('HdfsServer', )
@@ -6,7 +5,7 @@ __all__ = ('HdfsServer', )
 import os
 
 from FileUtil import fileinfo
-from RestServer import RestServer, STATUS_OK
+from RestServer import RestServer, STATUS_OK, STATUS_CREATED
 
 
 def get_opstr(op):
@@ -14,12 +13,13 @@ def get_opstr(op):
         "ls": "LISTSTATUS",
         "cat": "OPEN",
         "mkdir": "MKDIRS",
-        "cp": "CREATE",
+        "put": "CREATE",
         "home": "GETHOMEDIRECTORY",
         "append": "APPEND",
         "chmod": "SETPERMISSION",
         "chown": "SETOWNER",
-        "rename": "RENAME"
+        "rename": "RENAME",
+        "stat": "GETFILESTATUS"
     }[op]
 
 
@@ -81,6 +81,22 @@ class HdfsServer(RestServer):
         return super(HdfsServer, self).Post(
             url, user=self.user, params=params, data=data, text=text)
 
+
+    def exist(self, path):
+        if path[0] != "/":
+            path = "%s/%s" % (self.cwd, path)
+        r = self.Get(self.weburl + path, "stat")
+        if r is None: return
+        return "FileStatus" in r
+
+    def is_dir(self, path):
+        if path[0] != "/":
+            path = "%s/%s" % (self.cwd, path)
+        r = self.Get(self.weburl + path, "stat")
+ 
+        if r is None: return False
+        return r.get("FileStatus", {}).get("type", "") == "DIRECTORY"
+
 #-- operations
 
     def do_lls(self, data=''):
@@ -135,24 +151,54 @@ class HdfsServer(RestServer):
                         "mkdir",
                         params={"permission": perm})
 
-    def do_cp(self, data):
+    def do_put(self, data):
         params = data.split()
-        if len(params) != 2:
+        if len(params) == 1:
+            localfile = params[0]
+            remotefile = os.path.basename(localfile)
+        elif len(params) == 2:
+            localfile, remotefile = params
+        else:
             return "Incorrect parameters"
-            return
 
-        localfile, remotefile = params
         if remotefile[0] != "/":
             remotefile = "%s/%s" % (self.cwd, remotefile)
-        with file(localfile) as f:
+        if self.is_dir(remotefile):
+            remotefile = remotefile + "/" + os.path.basename(localfile)
+        with open(localfile) as f:
             r = self.Put(self.weburl + remotefile,
-                         "cp",
+                         "put",
                          params={"overwrite": "true"},
                          data=f.read(),
                          text=True,
                          expected=(STATUS_CREATED, ))
 
             return {"status": "OK"} if r is not None else "Failed"
+
+    def do_cp(self, data):
+        params = data.split()
+        if len(params) != 2:
+            return "Incorrect parameters"
+
+        srcfile, destfile = params
+        if srcfile[0] != "/":
+            srcfile = "/user/%s/%s" % (self.user, srcfile)
+        if destfile[0] != "/":
+            destfile = "/user/%s/%s" % (self.user, destfile)
+
+        if srcfile == destfile:
+            return "Cannot copy a file to itself"
+
+        if self.is_dir(destfile):
+            destfile = destfile + "/" + os.path.basename(srcfile)
+        if self.exist(destfile):
+            return "file %s already exist, cannot overwrite" % destfile
+
+        r = self.Put(self.weburl + destfile,
+                     "put",
+                     data=self.Get(self.weburl + srcfile, "cat", text=True),
+                     text=True,
+                     expected=(STATUS_CREATED, ))
 
     def do_append(self, data):
         params = data.split()
@@ -163,7 +209,7 @@ class HdfsServer(RestServer):
         localfile, remotefile = params
         if remotefile[0] != "/":
             remotefile = "%s/%s" % (self.cwd, remotefile)
-        with file(localfile) as f:
+        with open(localfile) as f:
             r = self.Post(
                 self.weburl + remotefile, "append", data=f.read(), text=True)
 
@@ -186,6 +232,21 @@ class HdfsServer(RestServer):
         else:
             return "Missing filename"
 
+    def do_get(self, data):
+        params = data.split()
+        if len(params) == 1:
+            localfile = remotefile = params[0]
+        elif len(params) == 2:
+            remotefile, localfile = params
+        else:
+            return "Incorrect parameters"
+
+        if remotefile[0] != "/":
+            remotefile = "%s/%s" % (self.cwd, remotefile)
+
+        with open(localfile, 'w') as fd:
+            fd.write(self.Get(self.weburl + remotefile, "cat", text=True))
+ 
     def do_rename(self, data):
         params = data.split()
         if len(params) != 2:

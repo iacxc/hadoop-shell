@@ -89,7 +89,7 @@ class HadoopShell(Cmd, object):
         HadoopCmd("port", "Set the port", "<port>"),
         HadoopCmd("proxy", "Get/Set the proxy", "[prefix url]"),
         HadoopCmd("passwd", "Set the password"),
-        HadoopCmd("get", "Get the url", "<url>"),
+        HadoopCmd("geturl", "Get the url", "<url>"),
         HadoopCmd("quit", "Exit the program"),
         HadoopCmd("exit", "Exit the program"),
         Seperator(),
@@ -193,7 +193,7 @@ class HadoopShell(Cmd, object):
     def do_passwd(self, data):
         self.server.do_passwd()
 
-    def do_get(self, data):
+    def do_geturl(self, data):
         self.do_echo(self.server.Get(data))
 
 
