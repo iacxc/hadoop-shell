@@ -25,8 +25,8 @@ def print_list(titles, lines):
     formats = []
     seperators = []
     for s in sizes:
-        formats.append("%%-%ds" % s)
-        seperators.append("-" * s)
+        formats.append(" %%-%ds " % s)
+        seperators.append("-" * (2+s))
 
     formatstr = "|" + "|".join(formats) + "|"
     seperator = "+" + "+".join(seperators) + "+"
@@ -214,8 +214,6 @@ class HadoopShell(Cmd, object):
             except KeyboardInterrupt:
                 self.do_echo("\nControl-C")
                 sys.exit(1)
-            except Exception as e:
-                self.do_echo(e)
 
     def get_parser(self):
         from optparse import OptionParser

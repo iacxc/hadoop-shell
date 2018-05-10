@@ -10,13 +10,10 @@ from HadoopShell import HadoopCmd, Seperator, HadoopShell
 class MapRShell(HadoopShell):
     commands = HadoopShell.commands + [
         HadoopCmd("list hosts", "List hosts"),
-        HadoopCmd("list services", "List services"),
+        HadoopCmd("list services", "List services", "[host]"),
         HadoopCmd("list jobs", "List jobs"),
         HadoopCmd("list volumes", "List volumes"),
-        Seperator(),
-        HadoopCmd("show", "Show a cluster", "<cluster>"),
-        HadoopCmd("show component", "Show a component",
-                  ["<cluster>", "<service>", "<component>"]),
+        HadoopCmd("list disks", "List volumes", "<host>"),
         Seperator(),
         HadoopCmd("add service", "Add a service", ["<cluster>", "<service>"]),
         HadoopCmd("add component", "Add a component",
@@ -52,7 +49,7 @@ class MapRShell(HadoopShell):
         self.do_echo(self.server.do_list(data))
 
     def do_show(self, data):
-        self.do_echo(self.server.do_show(data))
+        sself.do_echo(self.server.do_show(data))
 
     def do_add(self, data):
         self.do_echo(self.server.do_add(data))
@@ -72,7 +69,6 @@ class MapRShell(HadoopShell):
     def get_parser(self):
         parser = super(MapRShell, self).get_parser()
         parser.add_option("--password", default="mapr")
-        parser.set_defaults(prefix="https")
         parser.set_defaults(port=8443)
         parser.set_defaults(user="mapr")
 

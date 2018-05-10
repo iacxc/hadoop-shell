@@ -10,58 +10,6 @@ from urllib import quote
 from RestServer import RestServer
 
 
-def get_cluster_url(cluster=None):
-    if cluster is None:
-        return "/clusters"
-    else:
-        return quote("/clusters/%s" % cluster)
-
-
-def get_host_url(cluster=None):
-    if cluster is None:
-        return "/host"
-    else:
-        return quote("/clusters/%s/hosts" % cluster)
-
-
-def get_service_url(cluster, service=None):
-    if service is None:
-        return quote("/clusters/%s/services" % cluster)
-    else:
-        return quote("/clusters/%s/services/%s" % (cluster, service.upper()))
-
-
-def get_host_component_url(cluster, hostname, component=None):
-    if component is None:
-        return quote("/clusters/%s/hosts/%s/host_components" % (
-            cluster, hostname))
-    else:
-        return quote("/clusters/%s/hosts/%s/host_components/%s" % (
-            cluster, hostname, component.upper()))
-
-
-def get_component_url(cluster, service, component):
-    return quote("/clusters/%s/services/%s/components/%s" % (
-                     cluster, service.upper(), component.upper()))
-
-
-def get_alert_url(cluster, alert_id=None):
-    if alert_id is None:
-        return quote("/clusters/%s/alert_definitions" % cluster)
-    else:
-        return quote("/clusters/%s/alert_definitions/%d" % (cluster, alert_id))
-
-
-url_for = {
-    "cluster": get_cluster_url,
-    "host": get_host_url,
-    "service": get_service_url,
-    "component": get_component_url,
-    "host_component": get_host_component_url,
-    "alert": get_alert_url,
-}
-
-
 class MapRServer(RestServer):
     rootpath = "/rest"
 
@@ -99,12 +47,12 @@ class MapRServer(RestServer):
             params = [None]
         func = {"hosts": self.list_hosts,
                 "services": self.list_services,
-#                "jobs": self.list_jobs,
-#                "volumes": self.list_volumes,
+                "volumes": self.list_volumes,
+                "disks": self.list_disks,
         }.get(params[0], None)
 
         if func:
-            return func()
+            return func(*params[1:])
 
     def do_show(self, data):
         params = data.split()
@@ -176,21 +124,60 @@ class MapRServer(RestServer):
 
         lines = []
         for item in result["data"]:
-            lines.append((item["hostname"], item["ip"]))
+            lines.append((item["hostname"], item["ip"], item["configuredservice"]))
 
-        return [("HOST", "IP"), lines]
+        return [("HOST", "IP", "SERVICE"), lines]
 
-    def list_services(self):
-        """ get all services for a cluster """
+    def list_services(self, host=None):
+        """ get all services """
 
         url = self.weburl + "/service/list"
+        if host is not None:
+            url += "?node=%s" % host
+
+        result = self.Get(url)
+
+        lines = []
+        state_str = {0: "Not configured",
+                     1: "Configured",
+                     2: "Running",
+                     3: "Stopped",
+                     4: "Failed",
+                     5: "Stand by"}
+        for item in result["data"]:
+            lines.append((item["name"],
+                          item["displayname"],
+                          state_str[item["state"]],
+                          item["logpath"]))
+
+        return [("NAME", "DISPLAYNAME", "STATE", "LOGPATH"), lines]
+
+    def list_volumes(self):
+        """ get all volumes """
+
+        url = self.weburl + "/volume/list"
         result = self.Get(url)
 
         lines = []
         for item in result["data"]:
-            lines.append((item["name"], item["displayname"], item["state"]))
+            lines.append((item["volumename"], item["mountdir"], item["rackpath"]))
 
-        return [("NAME", "DISPLAYNAME", "STATE"), lines]
+        return [("NAME", "MOUNTDIR", "RACKPATH"), lines]
+
+    def list_disks(self, host):
+        """ get all disks for a host """
+
+        url = self.weburl + "/disk/list?host=%s" % host
+        result = self.Get(url)
+
+        lines = []
+        for item in result["data"]:
+            lines.append((item["diskname"],
+                          item["totalspace"],
+                          item.get("fstype", ""),
+                          item["status"]))
+
+        return [("NAME", "CAPACITY", "FILESYSTEM", "STATUS"), lines]
 
     def service_action(self, action, cluster=None, service=None):
         """ start/stop a service"""
