@@ -81,7 +81,7 @@ class HdfsShell(HadoopShell):
         self.do_echo(self.server.do_chmod(data))
 
     def do_chown(self, data):
-        self.do_echo(self.do_chown(data))
+        self.do_echo(self.server.do_chown(data))
 
     def get_parser(self):
         parser = super(HdfsShell, self).get_parser()
