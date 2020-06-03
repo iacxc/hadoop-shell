@@ -55,8 +55,6 @@ def Request(method,
     if len(params) > 0:
         url = url + ("&" if len(uri.query) > 0 else "?") + paramstr
 
-    if __debug__: print(url)
-
     if curl:
         print("curl -X {method}{auth}{header}{data}{url}".format(
             method=method,
@@ -122,7 +120,7 @@ class RestServer(object):
 
     @property
     def baseurl(self):
-        return "%s://%s:%d" % (self.prefix, self.host, self.port)
+        return f"{self.prefix}://{self.host}:{self.port}"
 
     @property
     def proxy(self):

@@ -233,9 +233,6 @@ class HadoopShell(Cmd, object):
         parser = self.get_parser()
         opts, args = parser.parse_args()
 
-        if __debug__:
-            print(opts, args)
-
         if opts.host is None:
             if len(args) > 0:
                 opts.host = args[0]
