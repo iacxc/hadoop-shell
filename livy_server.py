@@ -4,6 +4,7 @@ import time
 
 
 class LivySession(object):
+    HEADERS = {'Content-Type': 'application/json'}
     @staticmethod
     def get_sessions(livy_url):
         if not livy_url.startswith('http://'):
@@ -65,3 +66,13 @@ class LivySession(object):
             state = r.json()['state']
 
         return state
+
+    def wait_for(self, wait_for_states: tuple, interval: float = 0.1):
+        if not isinstance(wait_for_states, (list, tuple)):
+            wait_for_states = (wait_for_states,)
+        while True:
+            resp = requests.get(f'{self.__livy_url}', headers=self.HEADERS)
+            rr = resp.json()
+            if rr['state'] in wait_for_states:
+                return rr
+            time.sleep(interval)
