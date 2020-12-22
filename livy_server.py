@@ -5,74 +5,82 @@ import time
 
 class LivySession(object):
     HEADERS = {'Content-Type': 'application/json'}
-    @staticmethod
-    def get_sessions(livy_url):
-        if not livy_url.startswith('http://'):
-            livy_url = 'http://' + livy_url
+    @classmethod
+    def find_session(cls, host='localhost', port=8998, name=None):
+        if name is None:
+            raise ValueError('name can not be empty')
+        livy_url = f'http://{host}:{port}'
         url = f'{livy_url}/sessions'
-        r = requests.get(url)
-        return r.json()
+        resp = requests.get(url, headers=cls.HEADERS)
+        rr = resp.json()
+        for s in rr.get('sessions', []):
+            if s.get('name') == name:
+                return cls(livy_url, s['id'])
+        return None
 
-    def __init__(self, livy_url, name, py_files='', conf=None):
-        if not livy_url.startswith('http://'):
-            livy_url = 'http://' + livy_url
+    @classmethod
+    def create_session(cls, host='localhost', port=8998, name=None, **kwargs):
+        if name is None:
+            raise ValueError('name can not be empty')
 
-        self.__livy_url = livy_url
-        self.__session_id = None
+        livy_url = f'http://{host}:{port}'
+        url = f'{livy_url}/sessions'
+        data = {'name': name,
+                'kind': kwargs.get('kind', 'pyspark')
+                }
+        if 'kind' in kwargs:
+            kwargs.pop('kind')
+        data.update(kwargs)
 
-        self._create(name, py_files, conf)
+        resp = requests.post(url, json=data, headers=cls.HEADERS)
+        rr = resp.json()
 
-    def _create(self, name, py_files, conf):
-        if conf is None:
-            conf = {}
+        livy = cls(livy_url, rr['id'])
+        while livy.state in ('not_started', 'starting'):
+            time.sleep(3)
+        return livy
 
-        url = f'{self.__livy_url}/sessions'
-        post_data = {'name': name,
-                     'kind': 'pyspark',
-                     }
-        if conf:
-            post_data['conf'] = conf
-        r = requests.post(url, json=post_data)
-        self.__session_id = r.json()['id']
+    @classmethod
+    def get_session(cls, host='localhost', port=8998, name=None, **kwargs):
+        return cls.find_session(host, port, name) or \
+                   cls.create_session(host, port, name, **kwargs)
+
+    def __init__(self, livy_url, session_id):
+        self.__url = livy_url
+        self.__id = session_id
+
+    def __expr__(self):
+        return f'<LivySession: {self.__url}, {self.__id}>'
 
     @property
     def session_id(self):
-        return self.__session_id
+        return self.__id
 
     @property
     def state(self):
-        url = f'{self.__livy_url}/sessions/{self.session_id}/state'
-        r = requests.get(url)
-        return r.json()['state']
+        url = f'{self.__url}/sessions/{self.session_id}/state'
+        resp = requests.get(url)
+        return resp.json()['state']
 
     def query(self):
-        url = f'{self.__livy_url}/sessions/{self.session_id}'
-        r = requests.get(url)
-        return r.json()
+        url = f'{self.__url}/sessions/{self.session_id}'
+        resp = requests.get(url)
+        return resp.json()
 
     def delete(self):
-        url = f'{self.__livy_url}/sessions/{self.session_id}'
-        r = requests.delete(url)
-        return r.json()
+        url = f'{self.__url}/sessions/{self.session_id}'
+        resp = requests.delete(url)
+        return resp.json()
 
     def run_code(self, code):
-        url = f'{self.__livy_url}/sessions/{self.session_id}/statements'
+        url = f'{self.__url}/sessions/{self.session_id}/statements'
 
-        r = requests.post(url, json={'code': code})
-        state = r.json()['state']
+        resp = requests.post(url, json={'code': code})
+        state = resp.json()['state']
         while state in ('waiting', 'running'):
             time.sleep(0.1)
-            r = requests.post(url, json={'code': code})
-            state = r.json()['state']
+            resp = requests.post(url, json={'code': code})
+            state = resp.json()['state']
 
         return state
 
-    def wait_for(self, wait_for_states: tuple, interval: float = 0.1):
-        if not isinstance(wait_for_states, (list, tuple)):
-            wait_for_states = (wait_for_states,)
-        while True:
-            resp = requests.get(f'{self.__livy_url}', headers=self.HEADERS)
-            rr = resp.json()
-            if rr['state'] in wait_for_states:
-                return rr
-            time.sleep(interval)
