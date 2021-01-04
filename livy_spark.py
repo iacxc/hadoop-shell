@@ -49,7 +49,7 @@ class LivySession(object):
         self.__url = livy_url
         self.__id = session_id
 
-    def __expr__(self):
+    def __repr__(self):
         return f'<LivySession: {self.__url}, {self.__id}>'
 
     @property
@@ -76,10 +76,12 @@ class LivySession(object):
         url = f'{self.__url}/sessions/{self.session_id}/statements'
 
         resp = requests.post(url, json={'code': code})
-        state = resp.json()['state']
+        rr = resp.json()
+        stmt_id = rr['id']
+        state = rr['state']
         while state in ('waiting', 'running'):
             time.sleep(0.1)
-            resp = requests.post(url, json={'code': code})
+            resp = requests.get(f'{url}/{stmt_id}', json={'code': code})
             state = resp.json()['state']
 
         return state
