@@ -8,13 +8,13 @@ class Catalog(object):
         self.__port = port
 
     @property
-    def url():
+    def url(self):
         return f'http://{self.__host}:{self.__port}/api/catalog'
 
-    def get_apps():
+    def get_apps(self):
         resp = requests.get(f'{self.url}/apps')
         return resp.json()
 
-    def get_dbs():
+    def get_dbs(self):
         resp = requests.get(f'{self.url}/datasets')
         return resp.json()
