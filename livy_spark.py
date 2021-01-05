@@ -25,19 +25,15 @@ class LivySession(object):
 
         livy_url = f'http://{host}:{port}'
         url = f'{livy_url}/sessions'
-        data = {'name': name,
-                'kind': kwargs.get('kind', 'pyspark')
-                }
-        if 'kind' in kwargs:
-            kwargs.pop('kind')
-        data.update(kwargs)
+        data = kwargs
+        data.update(name=name, kind='pyspark')
 
         resp = requests.post(url, json=data, headers=cls.HEADERS)
         rr = resp.json()
 
         livy = cls(livy_url, rr['id'])
         while livy.state in ('not_started', 'starting'):
-            time.sleep(3)
+            time.sleep(1)
         return livy
 
     @classmethod
@@ -53,36 +49,48 @@ class LivySession(object):
         return f'<LivySession: {self.__url}, {self.__id}>'
 
     @property
+    def url(self):
+        return self.__url
+
+    @property
     def session_id(self):
         return self.__id
 
     @property
     def state(self):
-        url = f'{self.__url}/sessions/{self.session_id}/state'
+        url = f'{self.url}/sessions/{self.session_id}/state'
         resp = requests.get(url)
         return resp.json()['state']
 
     def query(self):
-        url = f'{self.__url}/sessions/{self.session_id}'
+        url = f'{self.url}/sessions/{self.session_id}'
         resp = requests.get(url)
         return resp.json()
 
     def delete(self):
-        url = f'{self.__url}/sessions/{self.session_id}'
+        url = f'{self.url}/sessions/{self.session_id}'
         resp = requests.delete(url)
         return resp.json()
 
-    def run_code(self, code):
-        url = f'{self.__url}/sessions/{self.session_id}/statements'
+    def query_stmt(self, stmt_id):
+        url = f'{self.url}/sessions/{self.session_id}/statements/{stmt_id}'
+        resp = requests.get(url)
+        return resp.json()
+
+    def run_code(self, code, batch=False, interval: float = 1):
+        url = f'{self.url}/sessions/{self.session_id}/statements'
 
         resp = requests.post(url, json={'code': code})
         rr = resp.json()
+       
+        if batch:
+            return rr
         stmt_id = rr['id']
         state = rr['state']
         while state in ('waiting', 'running'):
-            time.sleep(0.1)
-            resp = requests.get(f'{url}/{stmt_id}', json={'code': code})
-            state = resp.json()['state']
+            time.sleep(interval)
+            rr = self.query_stmt(stmt_id)
+            state = rr['state']
 
-        return state
+        return rr
 
