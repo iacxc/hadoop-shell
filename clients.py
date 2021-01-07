@@ -42,19 +42,11 @@ class LivySession(object):
                    cls.create_session(host, port, name, **kwargs)
 
     def __init__(self, livy_url, session_id):
-        self.__url = livy_url
-        self.__id = session_id
+        self.url = livy_url
+        self.session_id = session_id
 
     def __repr__(self):
-        return f'<LivySession: {self.__url}, {self.__id}>'
-
-    @property
-    def url(self):
-        return self.__url
-
-    @property
-    def session_id(self):
-        return self.__id
+        return f'<{self.__class__.__name__}: {self.url}, {self.session_id}>'
 
     @property
     def state(self):
@@ -94,3 +86,20 @@ class LivySession(object):
 
         return rr
 
+
+class Catalog(object):
+    def __init__(self, host, port=5000):
+        self.__host = host
+        self.__port = port
+
+    @property
+    def url(self):
+        return f'http://{self.__host}:{self.__port}/api/catalog'
+
+    def get_apps(self):
+        resp = requests.get(f'{self.url}/apps')
+        return resp.json()
+
+    def get_dbs(self):
+        resp = requests.get(f'{self.url}/datasets')
+        return resp.json()
