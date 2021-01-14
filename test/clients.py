@@ -103,3 +103,70 @@ class Catalog(object):
     def get_dbs(self):
         resp = requests.get(f'{self.url}/datasets')
         return resp.json()
+
+
+class Atlas(object):
+    def __init__(self, host='localhost', port=31000, auth=('admin','admin')):
+        self.api_url = f'http://{host}:{port}/api/atlas'
+        self.auth = auth
+
+    def version(self):
+        resp = requests.get(f'{self.api_url}/admin/version', auth=self.auth)
+        if not resp.ok:
+            raise RuntimeError('Bad response from atlas api server')
+        return resp.json()
+    
+    def types(self):
+        resp = requests.get(f'{self.api_url}/types', auth=self.auth)
+        if not resp.ok:
+            raise RuntimeError('Bad response from atlas api server')
+        return resp.json()
+
+    def get_type(self, type_name):
+        resp = requests.get(f'{self.api_url}/types/{type_name}', auth=self.auth)
+        return resp.json()
+
+    def create_type(self, type_name):
+        resp = requests.post(f'{self.api_url}/types', auth=self.auth)
+        return resp.json()
+
+    def get_entities(self):
+        resp = requests.get(f'{self.api_url}/entities', auth=self.auth)
+        return resp.json()
+
+    def get_entity_by_id(self, ent_id):
+        resp = requests.get(f'{self.api_url}/entities/{ent_id}', auth=self.auth)
+        return resp.json()
+
+    def get_entity(self, **kwargs):
+        resp = requests.get(f'{self.api_url}/entities', params=kwargs, auth=self.auth)
+        return resp.json()
+
+    def update_entity(self, ent_id):
+        resp = requests.post(f'{self.api_url}/entities/{ent_id}', auth=self.auth)
+
+    def find_entities(self):
+        data = {"typeName":               "hive_table",
+                "excludeDeletedEntities": True,
+                "classification":         "",
+                "query":                  "",
+                "offset":                 0,
+                "limit":                  50,
+                "entityFilters": {
+                    "condition": "AND",
+                    "criterion": [
+                        {
+                         "attributeName":  "name",
+                         "operator":       "contains",
+                         "attributeValue": "customers"
+                        },
+                        {
+                         "attributeName":  "owner",
+                         "operator":       "eq",
+                         "attributeValue": "hive"
+                        }
+                    ]
+                },
+                "attributes": [ "db", "qualifiedName" ]
+        }
+        resp = requests.post(f'{self.api_url}/v2/search/basic', auth=self.auth, json=data)
