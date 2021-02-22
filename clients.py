@@ -15,7 +15,7 @@ KNOX = "https://vlsj-mozart-poc2.cadence.com:8443/gateway"
 TOKEN_URL = f"{KNOX}/cdp-proxy-api/knoxtoken/api/v1/token"
 
 ATLAS_URL = "http://vlsj-mozart-poc5.cadence.com:31000/api/atlas"
-ATLAS_URL = "http://shmlbdlnx4.cadence.com:31000/api/atlas"
+#ATLAS_URL = "http://shmlbdlnx4.cadence.com:31000/api/atlas"
 KNOX_ATLAS_URL = f"{KNOX}/cdp-proxy/atlas/api/atlas"
 
 def get_token(token_url, auth=(USER, PASS)):
@@ -23,6 +23,75 @@ def get_token(token_url, auth=(USER, PASS)):
     rr = resp.json()
     print(rr['access_token'])
     return rr['access_token']
+
+class ClouderaManager(object):
+    VER = "v41"
+    def __init__(self, host, port=7180, auth=('admin', 'admin')):
+        self.url = f'http://{host}:{port}/api/{self.VER}'
+        self.auth = auth
+
+    @property
+    def name(self):
+        url = f'{self.url}/clusters'
+        resp = requests.get(url, auth=self.auth)
+        rr = resp.json()
+        return rr['items'][0]['name']
+
+    @property
+    def knox_host(self):
+        url = f'{self.url}/clusters/{self.name}/services/knox/roles'
+        resp = requests.get(url, auth=self.auth)
+        rr = resp.json()
+        return rr['items'][0]['hostRef']['hostname']
+
+    @property
+    def ranger_host(self):
+        url = f'{self.url}/clusters/{self.name}/services/ranger/roles'
+        resp = requests.get(url, auth=self.auth)
+        rr = resp.json()
+        return rr['items'][0]['hostRef']['hostname']
+
+    @property
+    def atlas_host(self):
+        url = f'{self.url}/clusters/{self.name}/services/atlas/roles'
+        resp = requests.get(url, auth=self.auth)
+        rr = resp.json()
+        return rr['items'][0]['hostRef']['hostname']
+
+    def get_atlas_url(self):
+        return f'https://{self.atlas_host}:31000/api/atlas/v2'
+
+    def get_atlas_knox_url(self):
+        return f'https://{self.knox_host}:8443/gateway/cdp-proxy/atlas/api/atlas/v2'
+
+    def get_ranger_knox_url(self):
+        return f'https://{self.knox_host}:8443/gateway/cdp-proxy/ranger'
+
+
+class Ranger(object):
+    def __init__(self, url, using_sso=True):
+        self.api_url = url
+        self.using_sso = using_sso
+        self.auth = (USER, PASS)
+        if self.using_sso:
+            self.token = get_token(TOKEN_URL, (USER, PASS))
+
+    def _get(self, path):
+        print(f'Get {self.api_url}/{path}')
+        if self.using_sso:
+            cookietext = {'hadoop-jwt': self.token}
+            resp = requests.get(f'{self.api_url}/{path}', cookies=cookietext,
+                                timeout=0.9, headers=HEADERS, verify=False)
+        else:
+            resp = requests.get(f'{self.api_url}/{path}', auth=self.auth,
+                                timeout=0.9, headers=HEADERS)
+        return resp
+
+    def get_user_by_name(self, user):
+        resp = self._get(f'service/xusers/users/userName/{user}')
+        rr = resp.json()
+        return rr
+
 
 class Atlas(object):
     VER = "v2"
@@ -40,21 +109,20 @@ class Atlas(object):
         if self.using_sso:
             cookietext = {'hadoop-jwt': self.token}
             resp = requests.get(f'{self.api_url}/{path}', cookies=cookietext,
-                                timeout=0.9, headers=HEADERS, verify=False)
+                                headers=HEADERS, verify=False)
         else:
             resp = requests.get(f'{self.api_url}/{path}', auth=self.auth,
-                                timeout=0.9, headers=HEADERS)
+                                headers=HEADERS)
         return resp
 
     def _post(self, path, data):
         if self.using_sso:
             cookietext = {'hadoop-jwt': self.token}
             resp = requests.post(f'{self.api_url}/{path}', cookies=cookietext,
-                                 timeout=0.9, json=data, headers=HEADERS, 
-                                 verify=False)
+                                 json=data, headers=HEADERS, verify=False)
         else:
             resp = requests.post(f'{self.api_url}/{path}', auth=self.auth,
-                                 timeout=0.9, json=data, headers=HEADERS)
+                                 json=data, headers=HEADERS)
         return resp
 
     def _delete(self, path):
@@ -158,9 +226,10 @@ def update_dir(altas, entity):
 
 
 if __name__ == '__main__':
-    atlas = Atlas(KNOX_ATLAS_URL)
-#    atlas = Atlas(ATLAS_URL, False)
+    cm = ClouderaManager('vlsj-mozart-poc1.cadence.com')
+    atlas_url = cm.get_atlas_knox_url()
+    atlas = Atlas(atlas_url, True)
+    print(json.dumps(atlas.get_types(), indent=4))
 
-    _, data = atlas.get_entities('CDNSDataSet', attrs=['db_id', 'directory'])
-    print(json.dumps(data, indent=4))
-
+#    ranger = Ranger(cm.get_ranger_knox_url(), True)
+#    print(ranger.get_user_by_name('mtest'))
