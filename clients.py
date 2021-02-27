@@ -182,48 +182,6 @@ class Atlas(RestServer):
         return resp.status_code, resp.json()
 
 
-def add_path(atlas, db_id):
-    return atlas.add_entity('hdfs_path',
-                            path=f'/data/warehouse/cui.db/{db_id}',
-                            qualifiedName=f'{db_id}:/data/warehouse/cui.db/{db_id}',
-                            name=f'{db_id}:/data/warehouse/cui.db/{db_id}')
-
-
-def update_fs(altas, entity, fileSystem):
-    attrs = entity['attributes']
-    return altas.add_entity('CDNSDataSet',
-                            fileSystem=fileSystem,
-                            qualifiedName=attrs['qualifiedName'],
-                            name=attrs['name'],
-                            db_id=attrs['db_id'],
-                            guid=entity['guid'],
-                            )
-
-
-def update_dir(altas, entity):
-    attrs = entity['attributes']
-    db_id = attrs['db_id']
-    try:
-        _, data = atlas.get_entities('hdfs_path',
-                                      qualifiedName=f'{db_id}:/data/warehouse/cui.db/{db_id}'
-                                     )
-        if 'entities' not in data:
-            log_trace(f'path for {db_id} not found')
-            return None
-
-        directory = [{'guid': data['entities'][0]['guid']}]
-        r = altas.add_entity('CDNSDataSet',
-                            directory=directory,
-                            qualifiedName=attrs['qualifiedName'],
-                            name=attrs['name'],
-                            db_id=db_id,
-                            guid=entity['guid'],
-                            )
-        log_trace(r)
-    except requests.exceptions.ReadTimeout:
-        print(f'Timeout for {db_id}')
-
-
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         cm_host = sys.argv[1]
@@ -234,3 +192,8 @@ if __name__ == '__main__':
     print(f'    Knox: {cm.knox_host}')
     print(f'    Atlas: {cm.atlas_host}')
     print(f'    Ranger: {cm.ranger_host}')
+    print(f'    TokenUrl: {cm.get_token_url()}')
+    print(f'    AtlasUrl: {cm.get_atlas_url()}')
+    print(f'    AtlasKnoxUrl: {cm.get_atlas_knox_url()}')
+    print(f'    RangerKnoxUrl: {cm.get_ranger_knox_url()}')
+
