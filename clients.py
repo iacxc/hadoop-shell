@@ -1,5 +1,6 @@
 import json
 import requests
+import sys
 import time
 import urllib3
 
@@ -8,84 +9,115 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 USER = "mtest"
 PASS = "Cadence"
-
 HEADERS = {'accept': 'application/json'}
 
-KNOX = "https://vlsj-mozart-poc2.cadence.com:8443/gateway"
-TOKEN_URL = f"{KNOX}/cdp-proxy-api/knoxtoken/api/v1/token"
 
-ATLAS_URL = "http://vlsj-mozart-poc5.cadence.com:31000/api/atlas"
-#ATLAS_URL = "http://shmlbdlnx4.cadence.com:31000/api/atlas"
-KNOX_ATLAS_URL = f"{KNOX}/cdp-proxy/atlas/api/atlas"
+def log_trace(msg):
+    print(msg, file=sys.stderr)
+
 
 def get_token(token_url, auth=(USER, PASS)):
+    log_trace(f'Get {token_url}')
     resp = requests.get(token_url, auth=auth, verify=False)
     rr = resp.json()
-    print(rr['access_token'])
     return rr['access_token']
 
-class ClouderaManager(object):
+
+class RestServer(object):
+    def __init__(self, url, auth=(USER, PASS), using_sso=True, token_url=None):
+        self.api_url = url
+        self.auth = auth
+        self.using_sso = using_sso
+        self.token_url = token_url
+        if self.using_sso:
+            self.token = get_token(self.token_url, self.auth)
+
+    def _get(self, path):
+        url = f'{self.api_url}/{path}'
+        log_trace(f'Get {url}')
+        if self.using_sso:
+            cookietext = {'hadoop-jwt': self.token}
+            log_trace(f'Token: {self.token}')
+            resp = requests.get(url, cookies=cookietext,
+                                headers=HEADERS, verify=False)
+        else:
+            resp = requests.get(url, auth=self.auth,
+                                headers=HEADERS)
+        return resp
+
+    def _post(self, path, data):
+        url = f'{self.api_url}/{path}'
+        log_trace(f'Post {url}')
+        if self.using_sso:
+            cookietext = {'hadoop-jwt': self.token}
+            resp = requests.post(url, cookies=cookietext,
+                                 json=data, headers=HEADERS, verify=False)
+        else:
+            resp = requests.post(url, auth=self.auth,
+                                 json=data, headers=HEADERS)
+        return resp
+
+    def _delete(self, path):
+        url = f'{self.api_url}/{path}'
+        log_trace(f'Delete {url}')
+        if self.using_sso:
+            cookietext = {'hadoop-jwt': self.token}
+            resp = requests.delete(url, cookies=cookietext,
+                                   headers=HEADERS, verify=False)
+        else:
+            resp = requests.delete(url, auth=self.auth,
+                                   headers=HEADERS)
+        return resp
+
+
+
+class ClouderaManager(RestServer):
     VER = "v41"
     def __init__(self, host, port=7180, auth=('admin', 'admin')):
-        self.url = f'http://{host}:{port}/api/{self.VER}'
-        self.auth = auth
+        super().__init__(f'http://{host}:{port}/api/{self.VER}',
+                         auth=auth, using_sso=False)
 
     @property
     def name(self):
-        url = f'{self.url}/clusters'
-        resp = requests.get(url, auth=self.auth)
+        resp = self._get('clusters')
         rr = resp.json()
         return rr['items'][0]['name']
 
     @property
     def knox_host(self):
-        url = f'{self.url}/clusters/{self.name}/services/knox/roles'
-        resp = requests.get(url, auth=self.auth)
+        resp = self._get(f'clusters/{self.name}/services/knox/roles')
         rr = resp.json()
         return rr['items'][0]['hostRef']['hostname']
 
     @property
     def ranger_host(self):
-        url = f'{self.url}/clusters/{self.name}/services/ranger/roles'
-        resp = requests.get(url, auth=self.auth)
+        resp = self._get(f'clusters/{self.name}/services/ranger/roles')
         rr = resp.json()
         return rr['items'][0]['hostRef']['hostname']
 
     @property
     def atlas_host(self):
-        url = f'{self.url}/clusters/{self.name}/services/atlas/roles'
-        resp = requests.get(url, auth=self.auth)
+        resp = self._get(f'clusters/{self.name}/services/atlas/roles')
         rr = resp.json()
         return rr['items'][0]['hostRef']['hostname']
 
+    def get_token_url(self):
+        return f'https://{self.knox_host}:8443/gateway/cdp-proxy-api/knoxtoken/api/v1/token'
+
     def get_atlas_url(self):
-        return f'https://{self.atlas_host}:31000/api/atlas/v2'
+        return f'https://{self.atlas_host}:31000/api/atlas'
 
     def get_atlas_knox_url(self):
-        return f'https://{self.knox_host}:8443/gateway/cdp-proxy/atlas/api/atlas/v2'
+        return f'https://{self.knox_host}:8443/gateway/cdp-proxy/atlas/api/atlas'
 
     def get_ranger_knox_url(self):
         return f'https://{self.knox_host}:8443/gateway/cdp-proxy/ranger'
 
 
-class Ranger(object):
-    def __init__(self, url, using_sso=True):
-        self.api_url = url
-        self.using_sso = using_sso
-        self.auth = (USER, PASS)
-        if self.using_sso:
-            self.token = get_token(TOKEN_URL, (USER, PASS))
-
-    def _get(self, path):
-        print(f'Get {self.api_url}/{path}')
-        if self.using_sso:
-            cookietext = {'hadoop-jwt': self.token}
-            resp = requests.get(f'{self.api_url}/{path}', cookies=cookietext,
-                                timeout=0.9, headers=HEADERS, verify=False)
-        else:
-            resp = requests.get(f'{self.api_url}/{path}', auth=self.auth,
-                                timeout=0.9, headers=HEADERS)
-        return resp
+class Ranger(RestServer):
+    def __init__(self, url, auth=(USER, PASS), using_sso=True, token_url=None):
+        super().__init__(url, auth=auth,
+                         using_sso=using_sso, token_url=token_url)
 
     def get_user_by_name(self, user):
         resp = self._get(f'service/xusers/users/userName/{user}')
@@ -93,47 +125,14 @@ class Ranger(object):
         return rr
 
 
-class Atlas(object):
+class Atlas(RestServer):
     VER = "v2"
-    def __init__(self, url, using_sso=True):
-        self.api_url = f'{url}/{self.VER}'
-        self.auth = (USER, PASS)
-        self.using_sso = using_sso
-        if using_sso:
-            self.token = get_token(TOKEN_URL, (USER, PASS))
+    def __init__(self, url, auth=(USER, PASS), using_sso=True, token_url=None):
+        super().__init__(f'{url}/{self.VER}', auth=auth,
+                         using_sso=using_sso, token_url=token_url)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.api_url}>'
-
-    def _get(self, path):
-        if self.using_sso:
-            cookietext = {'hadoop-jwt': self.token}
-            resp = requests.get(f'{self.api_url}/{path}', cookies=cookietext,
-                                headers=HEADERS, verify=False)
-        else:
-            resp = requests.get(f'{self.api_url}/{path}', auth=self.auth,
-                                headers=HEADERS)
-        return resp
-
-    def _post(self, path, data):
-        if self.using_sso:
-            cookietext = {'hadoop-jwt': self.token}
-            resp = requests.post(f'{self.api_url}/{path}', cookies=cookietext,
-                                 json=data, headers=HEADERS, verify=False)
-        else:
-            resp = requests.post(f'{self.api_url}/{path}', auth=self.auth,
-                                 json=data, headers=HEADERS)
-        return resp
-
-    def _delete(self, path):
-        if self.using_sso:
-            cookietext = {'hadoop-jwt': self.token}
-            resp = requests.delete(f'{self.api_url}/{path}', cookies=cookietext,
-                                   headers=HEADERS, verify=False)
-        else:
-            resp = requests.delete(f'{self.api_url}/{path}', auth=self.auth,
-                                   headers=HEADERS)
-        return resp
 
     def get_type_by_name(self, type_name):
         resp = self._get(f'types/typedef/name/{type_name}')
@@ -177,13 +176,13 @@ class Atlas(object):
                 data['entityFilters'] = conditions[0]
             else:
                 data['entityFilters'] = {'condition': 'AND',
-                                     'criterion': conditions}
+                                         'criterion': conditions}
 
         resp = self._post(f'search/basic', data)
         return resp.status_code, resp.json()
 
 
-def add_path(altas, db_id):
+def add_path(atlas, db_id):
     return atlas.add_entity('hdfs_path',
                             path=f'/data/warehouse/cui.db/{db_id}',
                             qualifiedName=f'{db_id}:/data/warehouse/cui.db/{db_id}',
@@ -209,7 +208,7 @@ def update_dir(altas, entity):
                                       qualifiedName=f'{db_id}:/data/warehouse/cui.db/{db_id}'
                                      )
         if 'entities' not in data:
-            print(f'path for {db_id} not found')
+            log_trace(f'path for {db_id} not found')
             return None
 
         directory = [{'guid': data['entities'][0]['guid']}]
@@ -220,16 +219,18 @@ def update_dir(altas, entity):
                             db_id=db_id,
                             guid=entity['guid'],
                             )
-        print(r)
+        log_trace(r)
     except requests.exceptions.ReadTimeout:
         print(f'Timeout for {db_id}')
 
 
 if __name__ == '__main__':
-    cm = ClouderaManager('vlsj-mozart-poc1.cadence.com')
-    atlas_url = cm.get_atlas_knox_url()
-    atlas = Atlas(atlas_url, True)
-    print(json.dumps(atlas.get_types(), indent=4))
-
-#    ranger = Ranger(cm.get_ranger_knox_url(), True)
-#    print(ranger.get_user_by_name('mtest'))
+    if len(sys.argv) > 1:
+        cm_host = sys.argv[1]
+    else:
+        cm_host = 'vlsj-mozart-poc1.cadence.com'
+    cm = ClouderaManager(cm_host)
+    print(f'Cluster: {cm.name}')
+    print(f'    Knox: {cm.knox_host}')
+    print(f'    Atlas: {cm.atlas_host}')
+    print(f'    Ranger: {cm.ranger_host}')
